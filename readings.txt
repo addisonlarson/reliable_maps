@@ -1,0 +1,52 @@
+This is my reading list. Most items are probably useless for my purposes.
+
+Ken Hodges, ACS Data Users Conference
+https://acsdatacommunity.prb.org/p/2014_acs_conference
+
+Reducing uncertainty in the ACS through data-driven regionalization
+https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0115626
+
+All things Seth Spielman
+https://scholar.google.com/scholar?hl=en&as_sdt=0%2C39&q=seth+spielman&btnG=
+
+Alternative strategies for mapping ACS estimates and error of estimation
+http://pad.human.cornell.edu/papers/downloads/CPC_Strategies%20for%20Mapping%20ACS%20Estimate%20and%20MOE.pdf
+
+The tyranny of Census geography
+https://www.huduser.gov/portal/periodicals/cityscpe/vol14num2/Cityscape_July2012_tyranny_census.pdf
+
+Assumptions and limitations of the Census Bureau methodology ranking racial and ethnic residential segregation in cities and metro areas
+https://www4.uwm.edu/eti/integration/QuinnCensus.pdf
+
+Neighborhood as a unit of planning and action: A heuristic approach
+https://journals.sagepub.com/doi/abs/10.1177/088541229801300102
+
+Towards an understanding of salient neighborhood boundaries
+https://ijbnpa.biomedcentral.com/articles/10.1186/1479-5868-4-66
+
+Mapping residents' perceptions of neighborhood boundaries
+https://s3.amazonaws.com/academia.edu.documents/45435242/Mapping_Residents_Perceptions_of_Neighb20160507-11750-11bgvrd.pdf?AWSAccessKeyId=AKIAIWOWYYGZ2Y53UL3A&Expires=1543512743&Signature=AzJsHjK3iKx7%2FxM7cNwIyjyr6P0%3D&response-content-disposition=inline%3B%20filename%3DMapping_residents_perceptions_of_neighbo.pdf
+
+The real limits of imaginary lines
+https://shelterforce.org/2018/05/07/the-real-limits-of-imaginary-lines/
+
+Subjective constructions of neighborhood boundaries
+https://onlinelibrary.wiley.com/doi/pdf/10.1111/j.1467-9906.2009.00450.x
+
+Beyond the census tract
+https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4196718/
+
+Race and the city
+https://s3.amazonaws.com/academia.edu.documents/30780154/Marschall_and_Stolle_2004.pdf?AWSAccessKeyId=AKIAIWOWYYGZ2Y53UL3A&Expires=1543513643&Signature=mVTswAIzrXoVGYt0O8HOFhSXxtg%3D&response-content-disposition=inline%3B%20filename%3DRace_and_the_city_Neighborhood_context_a.pdf
+
+Defining neighborhood boundaries for urban health research
+https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2467386/
+
+Mapping L.A.
+http://maps.latimes.com/about/
+
+How to measure legislative district compactness if you only know it when you see it
+https://gking.harvard.edu/files/gking/files/compact.pdf
+
+Measuring compactness
+https://fisherzachary.github.io/public/r-output.html

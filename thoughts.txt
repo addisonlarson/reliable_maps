@@ -1,0 +1,25 @@
+--------------------
+How did we get here?
+--------------------
+"Grant me the serenity to accept the things I cannot change..."
+
+Survey -> sample -> sample rate / sample size -> MOE
+
+-------------------
+The choices we make
+-------------------
+"Courage to change the things I can..."
+
+- Geography
+- Classification scheme
+- Number of breaks
+
+-------------------------------
+Things I shouldn't forget to do
+-------------------------------
+
+- READ THE LITERATURE (don't reinvent the wheel)
+- Remake 1-2-3 demonstration of sample error for IREG presentation
+- Substantial edits needed for existing MOE calculator UI
+
+"...and wisdom to know the difference"
