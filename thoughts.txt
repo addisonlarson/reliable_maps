@@ -1,3 +1,16 @@
+Criteria for (self) evaluation
+------------------------------
+- Does your summary speak directly to the description / problem?
+- Does it speak to a singular description?
+- What contribution does it make beyond what's been done in the last five years?
+
+EITHER
+"Innovations in visualizing/mapping ACS data"
+OR
+"Aggregating ACS data and creating effective user-defined geographic areas"
+OR
+"Presenting ACS data: Practical guidelines for data"
+
 --------------------
 How did we get here?
 --------------------
@@ -19,7 +32,6 @@ Things I shouldn't forget to do
 -------------------------------
 
 - READ THE LITERATURE (don't reinvent the wheel)
-- Remake 1-2-3 demonstration of sample error for IREG presentation
 - Substantial edits needed for existing MOE calculator UI
 
 "...and wisdom to know the difference"
