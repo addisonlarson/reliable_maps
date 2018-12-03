@@ -1,0 +1,22 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1543862695909.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "0",
+    "id" : "A6608B85",
+    "lastKnownWriteTime" : 1543862714,
+    "last_content_update" : 1543862714441,
+    "path" : "D:/alarson/reliable_maps/analyze_cv.R",
+    "project_path" : "analyze_cv.R",
+    "properties" : {
+        "cursorPosition" : "53,20",
+        "scrollLine" : "35"
+    },
+    "relative_order" : 3,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}

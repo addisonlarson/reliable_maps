@@ -53,7 +53,7 @@ obs <- bind_rows(bg, trct) %>%
   mutate(pct = B03003_003E / B03003_001E,
          moe = moe_prop(B03003_003E, B03003_001E, B03003_003M, B03003_001M) * 100,
          relative = moe / pct / 100,
-         cv = (moe / 1.645) / (pct * 100) * 100) %>%
+         cv = (moe / 1.645) / (pct * 100) * 100) %>% # Technically this and relative will be proportional, c = 1.645
   select(GEOID, type, pct, moe, relative, cv, geometry) %>%
   drop_na()
 

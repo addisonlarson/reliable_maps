@@ -1,0 +1,22 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1543862630977.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "0",
+    "id" : "AC874BA0",
+    "lastKnownWriteTime" : 1543862651,
+    "last_content_update" : 1543862651411,
+    "path" : "D:/alarson/reliable_maps/classification_example.R",
+    "project_path" : "classification_example.R",
+    "properties" : {
+        "cursorPosition" : "31,8",
+        "scrollLine" : "8"
+    },
+    "relative_order" : 2,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}
