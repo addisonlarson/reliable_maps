@@ -1,34 +1,77 @@
 PRIOR ACS REFERENCES ON AGGREGATING GEOGRAPHIES
 
 (1)
-Improving the reliability of ACS estimates for non-standard geographies used in local decision making
+Talk: "Improving the reliability of ACS estimates for non-standard geographies used in local decision making"
+Session:"Aggregating ACS Estimates and Calculating Margins of Error"
 Warren Brown, Joe Francis, Xiaoling Li
 https://acsdatacommunity.prb.org/p/2014_acs_conference
+Verdict:
+- This talk has two main sections. First, it discusses some basics on CVs and aggregating census units; second, it talks about creating non-standard geographies using allocations proportional to land area and to population / housing units.
+- Aggregations to areas that don't conform to either block group or census tract boundaries. They use CV cutoffs of Good < 15%, 15% <= Meh < 30%, Bad >= 30%, which is different from what I've used before. Another option they mention to reduce map error is to use less detailed crosstabs.
+- UMich ACS Estimates Aggregator: https://www.psc.isr.umich.edu/dis/acs/estimates_aggregator/
+- When we aggregate geographies, we can only *approximate* the new SE.
+- Interestingly, in creating custom geographies, the authors used parcel data, which introduced its own problems. I'd be curious to see if using decennial census housing and pop counts would make it different.
 
 (2)
-Improving the accuracy of block group data from the American Community Survey
+Talk: "Improving the accuracy of block group data from the American Community Survey"
+Session: "Aggregating ACS Estimates and Calculating Margins of Error"
 Ken Hodges
 https://acsdatacommunity.prb.org/p/2014_acs_conference
+Verdict:
+- Introduces the "touch method," which smooths block group values over block groups that are queen contiguous. Sort of like focal mean, where the kernel is the contiguous block groups.
+- I guess that, when a block group is on the boundary between two tracts, it will still include the block group(s) on the other side of the tract boundary.
+- I also think that the "touch method" could be improved with more auxiliary information. For example, contiguity links should not span natural barriers like rivers...or even man-made barriers, like freeways.
+- Can we use the new MOE from the aggregated geography as the MOE for the unit of interest? Like if we revise tract A's estimate taking the mean of A, B, C, D, E, and F, can we use A-F's computed MOE as A's new MOE? Or is that misleading? Sounds 99.78% misleading.
+- Hmmm...it might also be useful to take a look at rook vs. queen contiguity.
 
 (3)
-Small area data aggregation: Lessons from NYC's ACS aggregation tool
+Talk: "Navigating reliability of small area data: Lessons from NYC"
+Session: "Aggregating ACS Estimates and Calculating Margins of Error"
 Joel Alvarez, Joseph Salvo
-https://acsdatacommunity.prb.org/p/2015_acs_conference
+https://acsdatacommunity.prb.org/p/2014_acs_conference
+Verdict:
+- It doesn't seem there was a hugely scientific process behind the construction of NTAs. It sounds like the existing understanding of neighborhoods mainly informed this.
+- Unlike NYC, Philadelphia doesn't really have defined neighborhood boundaries. Doing so would be politically contentious. However, I could use the existing files proposed by various groups -- for example, Azavea's Philly Neighborhoods -- to draw some NTAs and test.
+- Seth Spielman is working on algorithmically aggregating geographies with the Census Bureau. So while I find this to be the most exciting question, one could say the turf is already claimed.
 
 (4)
+Talk: "Small area data aggregation: Lessons from NYC's ACS aggregation tool"
+Session: "Custom Aggregations of ACS Estimates and Dealing with Sampling Error"
+Joel Alvarez, Joseph Salvo
+https://acsdatacommunity.prb.org/p/2015_acs_conference
+Verdict:
+- It's official...less demo, more tables. Old school. No role for a live demonstration of any tool. If there will be a transportation / special tabulations session in this conference, then a systematic eval of CTPP might be the way to go.
+- I believe this presentation used an example of median income and its CV as an illustration of the variation of plausible estimates.
+- An application to the IREG presentation is to discuss the real-world variation of your seven example tracts.
+
+(5)
 Remapping the ACS: What makes a good neighborhood-scale Census geography?
 Seth Spielman, David Folch
 https://acsdatacommunity.prb.org/p/2015_acs_conference
+Verdict:
+- Open to further conversation on how we think about our ACS geographies. Links to all sorts of great stuff. Can we apply the same regionalization techniques to CTPP data? Is that even a good idea?
 
-(5)
+(6)
 Can we map ACS data with "confidence?"
 David Wong, Min Sun
 https://acsdatacommunity.prb.org/p/2017_acs_conference
+Verdict:
+- "As long as the standard error is available, it will be applicable."
+- "Areal units assigned to different classes are expected to have estimates different from each other."
+- This brings to mind MacEachren's useful application of Type I and Type II error to mapping.
+- A bit more complicated: proposed 'class separability,' a measure of classification reliability.
+- So far, using R Shiny to let users just drop in their stuff is a new and should be mentioned in abstract.
+- Interesting term: "balanced map." Never heard this before.
+- http://gesg.gmu.edu/index.htm
 
-(6)
+(7)
 Towards standards in mapping ACS data
 Joel Alvarez, Joseph Salvo
 https://acsdatacommunity.prb.org/p/2017_acs_conference
+Verdict:
+- I've basically seen this before! This paper presentes the method used to estimate the percentage classification error.
+- Used a set of 59 different ACS datasets. A difference, though, between the papers so far and your ideas is that the prior presentations are original (yes?) research. Most of my stuff are improvements to research.
+- My hunch is that a convincing abstract must speak directly to what specific contribution(s) your research makes.
 
 PRIOR ACS REFERENCES ON CTPP / CUSTOM TRANSPORTATION TABULATION
 
