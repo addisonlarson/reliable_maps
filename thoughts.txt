@@ -1,37 +1,36 @@
-Criteria for (self) evaluation
-------------------------------
-- Does your summary speak directly to the description / problem?
-- Does it speak to a singular description?
-- What contribution does it make beyond what's been done in the last five years?
+1. 12/13/18
+- Abstract proposing a systemic study of the quality of newest CTPP data release at all available geographies
+- Propose a new app enabling users to dynamically compute and display CVs for any dataset
+- Part of a suite of tools for judicious data use: first choose your geography, then choose the way you categorize, classify, and display that geography
 
-EITHER
-"Innovations in visualizing/mapping ACS data"
-OR
-"Aggregating ACS data and creating effective user-defined geographic areas"
-OR
-"Presenting ACS data: Practical guidelines for data"
+Benefits of proposed work include:
+	a. Expose conference attendees to the unique variables and geographies in the CTPP special tabulation
+	b. Benchmark the quality of the newest CTPP release and how its reliability changes with geographic scale, distance from the city center, urban / rural contexts (DVRPC region has good variety), income? (see Spielman)
+	c. Demonstrate a nationally reproducible method to programmatically evaluate and visualize the quality of ACS and CTPP data
+	d. (Must cite Shiny app) Provide access to flexible tools that allow any data user to conduct a reliability analysis and categorize / map their data
 
---------------------
-How did we get here?
---------------------
-"Grant me the serenity to accept the things I cannot change..."
+2. 12/12/18
+- Presentation of MOE calculator at IREG
+- Complete stylistic improvements on Shiny app by this date
+- Mention future goals, including evaluation of newest CTPP release and aggregating geographies
 
-Survey -> sample -> sample rate / sample size -> MOE
+3. 02/01/19
+- Further MOE calculator edits
+- CV viewer
 
--------------------
-The choices we make
--------------------
-"Courage to change the things I can..."
+When the user uploads tabular data with GEOID, Estimate, and MOE:
+	a. Parse GEOID for spatial unit, then state and/or county, as applicable. Multi-state queries?
+	b. Use API to download TIGER/LINE shapefile
+	c. Join tabular and shapefile by GEOID; subset for uploaded area; plot map, histogram, and summary of CVs
 
-- Geography
-- Classification scheme
-- Number of breaks
+4. 04/01/19
+- Philly "NTAs"
+- Select most popular ACS tables as test
+- Use Spielman's heuristic to create "optimal NTAs"
+- Aggregate tracts to "consensus NTAs" based on the overlap of existing neighborhood maps (majority rules!)
+- Analyze differences
 
--------------------------------
-Things I shouldn't forget to do
--------------------------------
-
-- READ THE LITERATURE (don't reinvent the wheel)
-- Substantial edits needed for existing MOE calculator UI
-
-"...and wisdom to know the difference"
+For each ACS table:
+	a. Compute and plot estimates and CVs for optimal and consensus NTAs
+	b. Look for excess smoothing (result of combining incompatible tracts) and test for differences before and after creating "NTAs"
+	c. There will be other things to keep in mind here...TBD

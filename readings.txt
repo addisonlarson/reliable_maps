@@ -1,8 +1,14 @@
-PRIOR ACS REFERENCES ON AGGREGATING GEOGRAPHIES
+Categories:
+1.	Prior ACS Conference references on aggregating geographies
+2.	Prior ACS Conference references on CTPP / custom transportation tabulation
+3.	Guidance on aggregating geographies
+4.	Critiques on the representativeness of Census boundaries
+5.	Measuring geographic compactness
 
-(1)
-Talk: "Improving the reliability of ACS estimates for non-standard geographies used in local decision making"
-Session:"Aggregating ACS Estimates and Calculating Margins of Error"
+------------------------------------------------------------------
+1.	PRIOR ACS CONFERENCE REFERENCES ON AGGREGATING GEOGRAPHIES
+------------------------------------------------------------------
+1.1.	"Improving the reliability of ACS estimates for non-standard geographies used in local decision making"
 Warren Brown, Joe Francis, Xiaoling Li
 https://acsdatacommunity.prb.org/p/2014_acs_conference
 Verdict:
@@ -12,9 +18,7 @@ Verdict:
 - When we aggregate geographies, we can only *approximate* the new SE.
 - Interestingly, in creating custom geographies, the authors used parcel data, which introduced its own problems. I'd be curious to see if using decennial census housing and pop counts would make it different.
 
-(2)
-Talk: "Improving the accuracy of block group data from the American Community Survey"
-Session: "Aggregating ACS Estimates and Calculating Margins of Error"
+1.2.	"Improving the accuracy of block group data from the American Community Survey"
 Ken Hodges
 https://acsdatacommunity.prb.org/p/2014_acs_conference
 Verdict:
@@ -24,9 +28,7 @@ Verdict:
 - Can we use the new MOE from the aggregated geography as the MOE for the unit of interest? Like if we revise tract A's estimate taking the mean of A, B, C, D, E, and F, can we use A-F's computed MOE as A's new MOE? Or is that misleading? Sounds 99.78% misleading.
 - Hmmm...it might also be useful to take a look at rook vs. queen contiguity.
 
-(3)
-Talk: "Navigating reliability of small area data: Lessons from NYC"
-Session: "Aggregating ACS Estimates and Calculating Margins of Error"
+1.3.	"Navigating reliability of small area data: Lessons from NYC"
 Joel Alvarez, Joseph Salvo
 https://acsdatacommunity.prb.org/p/2014_acs_conference
 Verdict:
@@ -34,9 +36,7 @@ Verdict:
 - Unlike NYC, Philadelphia doesn't really have defined neighborhood boundaries. Doing so would be politically contentious. However, I could use the existing files proposed by various groups -- for example, Azavea's Philly Neighborhoods -- to draw some NTAs and test.
 - Seth Spielman is working on algorithmically aggregating geographies with the Census Bureau. So while I find this to be the most exciting question, one could say the turf is already claimed.
 
-(4)
-Talk: "Small area data aggregation: Lessons from NYC's ACS aggregation tool"
-Session: "Custom Aggregations of ACS Estimates and Dealing with Sampling Error"
+1.4.	"Small area data aggregation: Lessons from NYC's ACS aggregation tool"
 Joel Alvarez, Joseph Salvo
 https://acsdatacommunity.prb.org/p/2015_acs_conference
 Verdict:
@@ -44,15 +44,13 @@ Verdict:
 - I believe this presentation used an example of median income and its CV as an illustration of the variation of plausible estimates.
 - An application to the IREG presentation is to discuss the real-world variation of your seven example tracts.
 
-(5)
-Remapping the ACS: What makes a good neighborhood-scale Census geography?
+1.5.	Remapping the ACS: What makes a good neighborhood-scale Census geography?
 Seth Spielman, David Folch
 https://acsdatacommunity.prb.org/p/2015_acs_conference
 Verdict:
 - Open to further conversation on how we think about our ACS geographies. Links to all sorts of great stuff. Can we apply the same regionalization techniques to CTPP data? Is that even a good idea?
 
-(6)
-Can we map ACS data with "confidence?"
+1.6.	Can we map ACS data with "confidence?"
 David Wong, Min Sun
 https://acsdatacommunity.prb.org/p/2017_acs_conference
 Verdict:
@@ -64,8 +62,7 @@ Verdict:
 - Interesting term: "balanced map." Never heard this before.
 - http://gesg.gmu.edu/index.htm
 
-(7)
-Towards standards in mapping ACS data
+1.7.	Towards standards in mapping ACS data
 Joel Alvarez, Joseph Salvo
 https://acsdatacommunity.prb.org/p/2017_acs_conference
 Verdict:
@@ -73,56 +70,105 @@ Verdict:
 - Used a set of 59 different ACS datasets. A difference, though, between the papers so far and your ideas is that the prior presentations are original (yes?) research. Most of my stuff are improvements to research.
 - My hunch is that a convincing abstract must speak directly to what specific contribution(s) your research makes.
 
-PRIOR ACS REFERENCES ON CTPP / CUSTOM TRANSPORTATION TABULATION
+----------------------------------------------------------------------------------
+2.	PRIOR ACS CONFERENCE REFERENCES ON CTPP / CUSTOM TRANSPORTATION TABULATION
+----------------------------------------------------------------------------------
 
-(1)
-Because I'm special: A custom tabulation for transportation
+2.1.	Because I'm special: A custom tabulation for transportation
 Penelope Weinberger, Jim Hubbell
 https://acsdatacommunity.prb.org/p/2014_acs_conference
+Verdict:
+- A quick overview of what the CTPP is.
+- References https://www.nap.edu/catalog/13895/a-guidebook-for-using-american-community-survey-data-for-transportation-planning
+- Probably Chapter 9 and/or Appendix I are the relevant content here
 
-PHASE 2
+-------------------------------------------
+3.	GUIDANCE ON AGGREGATING GEOGRAPHIES
+-------------------------------------------
 
-(1) Reducing uncertainty in the ACS through data-driven regionalization
+3.1.	Reducing uncertainty in the ACS through data-driven regionalization
 https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0115626
+Verdict:
+- The gold standard if one exists / a must-try.
 
-(2) The tyranny of Census geography
-https://www.huduser.gov/portal/periodicals/cityscpe/vol14num2/Cityscape_July2012_tyranny_census.pdf
-
-(3) Assumptions and limitations of the Census Bureau methodology ranking racial and ethnic residential segregation in cities and metro areas
-https://www4.uwm.edu/eti/integration/QuinnCensus.pdf
-
-(4) Neighborhood as a unit of planning and action: A heuristic approach
-https://journals.sagepub.com/doi/abs/10.1177/088541229801300102
-
-(5) Towards an understanding of salient neighborhood boundaries
-https://ijbnpa.biomedcentral.com/articles/10.1186/1479-5868-4-66
-
-(6) Mapping residents' perceptions of neighborhood boundaries
-https://s3.amazonaws.com/academia.edu.documents/45435242/Mapping_Residents_Perceptions_of_Neighb20160507-11750-11bgvrd.pdf?AWSAccessKeyId=AKIAIWOWYYGZ2Y53UL3A&Expires=1543512743&Signature=AzJsHjK3iKx7%2FxM7cNwIyjyr6P0%3D&response-content-disposition=inline%3B%20filename%3DMapping_residents_perceptions_of_neighbo.pdf
-
-(7) The real limits of imaginary lines
-https://shelterforce.org/2018/05/07/the-real-limits-of-imaginary-lines/
-
-(8) Subjective constructions of neighborhood boundaries
+3.2.	Subjective constructions of neighborhood boundaries
 https://onlinelibrary.wiley.com/doi/pdf/10.1111/j.1467-9906.2009.00450.x
+Verdict:
+- Hints at potentially important and operationalizable spatial barriers to consider in aggregating geographies.
+- "Neighborhood boundaries may be defined by physical landmarks and features of a neighborhood, the spatial reach of residents' social interactions, or rather subjectively--through an examination of residents' 'cognitive maps' of the physical contours of their neighborhoods."
+- "Consistent with past research on the sources of neighborhood definition, built and natural structures, such as roads, rivers, and parks, were frequently used by participants to define the boundaries of their neighborhoods."
 
-(9) Beyond the census tract
-https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4196718/
-
-(10) Race and the city
-https://s3.amazonaws.com/academia.edu.documents/30780154/Marschall_and_Stolle_2004.pdf?AWSAccessKeyId=AKIAIWOWYYGZ2Y53UL3A&Expires=1543513643&Signature=mVTswAIzrXoVGYt0O8HOFhSXxtg%3D&response-content-disposition=inline%3B%20filename%3DRace_and_the_city_Neighborhood_context_a.pdf
-
-(11) Defining neighborhood boundaries for urban health research
+3.3.	Defining neighborhood boundaries for urban health research
 https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2467386/
+Verdict:
+- Not quantitative in nature, but considers contiguity, "potential for efficient recruitment of appropriate participants" (pop. density, public facilities), "evidence of homogeneity," "connectivity to and/or segregation from adjacent blocks," and maximizing heterogeneity between neighborhood boundaries.
+- A discussion-based approach to research is infeasible at large scale but can be operationalized somewhat.
+- "Limitations to the method exist, however, including its subjectivity and lack of resident perspective."
 
-(12) Mapping L.A.
-http://maps.latimes.com/about/
+----------------------------------------------------------------
+4.	CRITIQUES ON THE REPRESENTATIVENESS OF CENSUS BOUNDARIES
+----------------------------------------------------------------
 
-(13)
-How to measure legislative district compactness if you only know it when you see it
+4.1.	The tyranny of Census geography
+https://www.huduser.gov/portal/periodicals/cityscpe/vol14num2/Cityscape_July2012_tyranny_census.pdf
+Verdict:
+- I just read because this is interesting. Will keep in my back pocket and defer to Seth Spielman on the implementation (for now?).
+- "In many cases, neighborhoods are equated with census tract boundaries and the criteria to determine eligibility are based on sample data from the census tract, often without regard to standard errors."
+- "Tracts, however, may contain pockets of demographic, social, and economic characteristics and patterns that may not be reflected in their summary statistics. Indeed, as stated earlier, maintaining tract homogeneity is no longer really possible given changing patterns of settlement and density in large urban areas. For example, Housing Choice Voucher (Section 8) recipients may be moving to 'neighborhoods' of less poverty, but, in practice, they may be moving to high or similar poverty areas within a different census tract."
+
+4.2.	Assumptions and limitations of the Census Bureau methodology ranking racial and ethnic residential segregation in cities and metro areas
+https://www4.uwm.edu/eti/integration/QuinnCensus.pdf
+Verdict:
+- Interesting but not super relevant.
+- "It also appears inappropriate for the Census Bureau to claim that census tracts defined a half-century ago 'represent neighborhoods.' As the Census Bureau itself notes, 'Census tracts...when first delineated, are designed to be homogeneous with respect to population characteristics, economic status, and living conditions.' Once defined, the Census Bureau does not allow adjustments of census tract boundaries (except for subdivisions), regardless of whether the neighborhood characteristics change."
+
+4.3.	Mapping residents' perceptions of neighborhood boundaries
+https://www.researchgate.net/publication/225267178_Mapping_Residents'_Perceptions_of_Neighborhood_Boundaries_A_Methodological_Note
+Verdict:
+- Highlights the subjectivity of defining neighborhoods. The authors appear to hint that census tract boundaries should be redrawn as a part of a massive crowdsourcing effort.
+- "Even though the average size of residents' maps fairly closely approximated the census tract, most residents' maps incorporated portions of multiple census tracts. Thus, census tracts may be reasonably sized units for representing neighborhoods, but there is no evidence that residents see their neighborhoods according to census geography." 
+
+4.4.	The real limits of imaginary lines
+https://shelterforce.org/2018/05/07/the-real-limits-of-imaginary-lines/
+Verdict:
+- Argues for substantial redrawing of census tracts; or at a minimum, to stop conflating tracts and "neighborhoods."
+
+4.5.	Subjective constructions of neighborhood boundaries
+https://onlinelibrary.wiley.com/doi/pdf/10.1111/j.1467-9906.2009.00450.x
+Verdict:
+- Use caution in selecting geographic scale: the wrong scale can mask or falsely create difference.
+- "[S]electing a geographic unit of analysis that is appropriate for the particular phenomenon under investigation is critical to accurately identifying neighborhood effects."
+- "Consistent with past research on the sources of neighborhood definition, built and natural structures, such as roads, rivers, and parks, were frequently used by participants to define the boundaries of their neighborhoods."
+
+4.6.	Beyond the census tract
+https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4196718/
+Verdict:
+- Thoughtful mentions of the problems of geographic scale in characterizing "neighborhoods."
+- "The first of these [assumptions about scale and proximity] is the implicit assumption that the tract constitutes an appropriately-sized spatial unit for capturing segregation. This assumption obscures potential variation among regions (e.g., metropolitan areas) in the scale of segregation since tract measures cannot distinguish regions where racial composition changes over short distances from those where differences in composition occur between large subareas."
+- "The second assumption, actually a corollary of the first, is that the scale to which the census tract corresponds can in fact be ascertained, thanks to the standardized, stable nature of tracts. As we show below, substantial variation exists in the territorial size of tracts within and across metro areas, which means that the 'scale' of tract-based segregation measures remains ambiguous."
+- "The third assumption is that all persons sharing a tract, whether located in the core of the tract or near its edges, have no proximity to residents outside of the tract but are equally proximate to everyone within its boundaries. This assumption inheres less in the tract-level data used by conventional studies than in their treatment of tracts as spatially autonomous, disregarding how close to or far from each other tracts are."
+
+4.7. Block, tract, and levels of aggregation: Neighborhood structure and crime and disorder as a case in point
+https://socialecology.uci.edu/sites/socialecology.uci.edu/files/users/pdevoe/John_Hipp_American_Sociological_Review_2007.pdf
+Verdict:
+- Remember the MAUP? "The MAUP occurs when aggregating processes that are not homogenous over the geographic area."
+- A potential tension between reliability (larger geographies = less sample error) and truthfulness (masking difference).
+- But honestly, this goes both ways. An analogy is Type I and Type II error.
+- "Nonetheless, strolling the streets of many cities shows that blocks with high crime levels neighbor blocks with much less crime. This raises the possibility of considerable heterogeneity in the amount of crime on blocks that are then aggregated into a measure of the amount of crime in the overall census tract."
+- "The existing empirical evidence suggests that the effect of racial/ethnic heterogeneity on crime may be particularly robust over various geographical aggregations."
+- So basically, it depends on the dataset. Some are better aggregated; others aren't.
+- Herfindahl-Hirschman Index!
+
+----------------------------------------
+5.	MEASURING GEOGRAPHIC COMPACTNESS
+----------------------------------------
+
+5.1.	How to measure legislative district compactness if you only know it when you see it
 https://gking.harvard.edu/files/gking/files/compact.pdf
-Verdict: Not really relevant, *except* for a chunk of the paper when the authors show how a number of leading measures of compactness rank the same four geographies differently...sometimes vastly differently. If we end up using a measure of compactness in aggregating geographies, then we must think critically about this.
+Verdict:
+The authors show how a number of leading measures of compactness rank the same four geographies differently, sometimes vastly so.
 
-(14) Measuring compactness
+5.2.	Measuring compactness
 https://fisherzachary.github.io/public/r-output.html
-Verdict: A useful, readable overview of the most common measures of compactness. I liek.
+Verdict:
+A useful, readable overview of the most common measures of compactness.
