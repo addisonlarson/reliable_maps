@@ -54,7 +54,8 @@ for (i in 2:idx){
   png(here("figures", paste0("rand_", i - 1, ".png")), width = 10, height = 7.5, units = "in", res = 500)
   plot(rand[i], breaks = "quantile", nbreaks = 5,
        pal = brewer.pal(5, "PuBu"),
-       border = NA, main = NULL)
+       border = NA, main = NULL, reset = FALSE)
+  plot(st_geometry(ethnCty), col = NA, border = "dimgray", add = TRUE)
   dev.off()
 }
 
@@ -75,7 +76,8 @@ for (j in 3:7){
   png(here("figures", paste0("cn_", j, ".png")), width = 10, height = 7.5, units = "in", res = 500)
   plot(ethnTrct["pct"], breaks = eBreaks,
        pal = brewer.pal(j, "PuBu"),
-       border = NA, main = error_class[j - 2])
+       border = NA, main = error_class[j - 2], reset = FALSE)
+  plot(st_geometry(ethnCty), col = NA, border = "dimgray", add = TRUE)
   dev.off()
 }
 
@@ -86,17 +88,20 @@ error_class <- c("17.3% Overall Map Error, 31.2% Max. Class Error",
 png(here("figures", "cb_jenks.png"), width = 10, height = 7.5, units = "in", res = 500)
 plot(ethnTrct["pct"], breaks = "jenks", nbreaks = 5,
      pal = brewer.pal(5, "PuBu"),
-     border = NA, main = error_class[1])
+     border = NA, main = error_class[1], reset = FALSE)
+plot(st_geometry(ethnCty), col = NA, border = "dimgray", add = TRUE)
 dev.off()
 png(here("figures", "cb_quantile.png"), width = 10, height = 7.5, units = "in", res = 500)
 plot(ethnTrct["pct"], breaks = "quantile", nbreaks = 5,
      pal = brewer.pal(5, "PuBu"),
-     border = NA, main = error_class[2])
+     border = NA, main = error_class[2], reset = FALSE)
+plot(st_geometry(ethnCty), col = NA, border = "dimgray", add = TRUE)
 dev.off()
 png(here("figures", "cb_equal.png"), width = 10, height = 7.5, units = "in", res = 500)
 plot(ethnTrct["pct"], breaks = "equal", nbreaks = 5,
      pal = brewer.pal(5, "PuBu"),
-     border = NA, main = error_class[3])
+     border = NA, main = error_class[3], reset = FALSE)
+plot(st_geometry(ethnCty), col = NA, border = "dimgray", add = TRUE)
 dev.off()
 
 # Geography selected
@@ -105,10 +110,12 @@ error_class <- c("4.5% Overall Map Error, 29.8% Max. Class Error",
 png(here("figures", "geo_trct.png"), width = 10, height = 7.5, units = "in", res = 500)
 plot(ethnTrct["pct"], breaks = "equal", nbreaks = 5,
      pal = brewer.pal(5, "PuBu"),
-     border = NA, main = error_class[1])
+     border = NA, main = error_class[1], reset = FALSE)
+plot(st_geometry(ethnCty), col = NA, border = "dimgray", add = TRUE)
 dev.off()
 png(here("figures", "geo_bg.png"), width = 10, height = 7.5, units = "in", res = 500)
 plot(ethnBg["pct"], breaks = "equal", nbreaks = 5,
      pal = brewer.pal(5, "PuBu"),
-     border = NA, main = error_class[2])
+     border = NA, main = error_class[2], reset = FALSE)
+plot(st_geometry(ethnCty), col = NA, border = "dimgray", add = TRUE)
 dev.off()

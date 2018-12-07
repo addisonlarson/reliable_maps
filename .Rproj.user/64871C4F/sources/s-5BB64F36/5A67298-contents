@@ -35,12 +35,6 @@ ethnTrct <- st_read(here("outputs", "./ethn_orig_trct.shp")) %>%
   st_transform(26918) %>%
   mutate(cty = substr(GEOID, 3, 5)) %>%
   subset(cty == 101)
-ethnCty <- st_read(here("outputs", "./ethn_orig_cty.shp")) %>%
-  mutate_at(c("GEOID"), as.character) %>%
-  st_set_crs(4326) %>%
-  st_transform(26918) %>%
-  mutate(cty = substr(GEOID, 3, 5)) %>%
-  subset(cty == 101)
 
 # Define plot colors
 primary = "#73A8D0"
@@ -62,7 +56,6 @@ est <- ethnTrct %>% subset(GEOID == top[1,]$GEOID)
 png(here("figures", "p1_location.png"), width = 5, height = 5, units = "in", res = 500)
 plot(st_geometry(ethnTrct), col = light, border = NA, primary = NULL)
 plot(st_geometry(est), col = secondary, border = NA, add = TRUE)
-plot(st_geometry(ethnCty), col = NA, border = "dimgray", add = TRUE)
 dev.off()
 
 # Single estimate with class boundary
