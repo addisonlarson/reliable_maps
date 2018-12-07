@@ -33,30 +33,27 @@ ethnCty <- st_read(here("outputs", "./ethn_orig_cty.shp")) %>%
          sd = moe / 1.645)
 
 # Generate random outcomes based on estimate and MOE
-alternatives <- 20; idx <- ncol(ethnTrct)
+alternatives <- 20; idx <- ncol(ethnBg)
 for(i in 1:alternatives){
-  ethnTrct[i + idx] <- 0
-  colnames(ethnTrct)[i + idx] <- paste0("s_", i)
-  for (row in 1:nrow(ethnTrct)) {
-    normval <- rnorm(1, ethnTrct$pct[[row]], ethnTrct$sd[[row]])
-    ethnTrct[row, i + idx] <- ifelse(is.nan(normval), NA, normval)
+  ethnBg[i + idx] <- 0
+  colnames(ethnBg)[i + idx] <- paste0("s_", i)
+  for (row in 1:nrow(ethnBg)) {
+    normval <- rnorm(1, ethnBg$pct[[row]], ethnBg$sd[[row]])
+    ethnBg[row, i + idx] <- ifelse(is.nan(normval), NA, normval)
   }
 }
 
 # Display random outcomes with same no classes and class scheme
-rand <- ethnTrct %>%
+rand <- ethnBg %>%
   select(pct, starts_with("s_")) %>%
   mutate_at(vars(s_1:s_20), funs(replace(., . < 0, 0))) %>%
-  mutate_at(vars(s_1:s_20), funs(replace(., . > max(pct), max(pct))))
+  mutate_at(vars(s_1:s_20), funs(replace(., . > 100, 100)))
 idx <- ncol(rand) - 1
-eBreaks <- seq(min(rand$pct, na.rm = TRUE),
-               max(rand$pct, na.rm = TRUE),
-               length.out = 5)
-eBreaks[1] <- 0; eBreaks[5] <- 100
+
 for (i in 2:idx){
   png(here("figures", paste0("rand_", i - 1, ".png")), width = 10, height = 7.5, units = "in", res = 500)
-  plot(rand[i], breaks = eBreaks,
-       pal = brewer.pal(4, "PuBu"),
+  plot(rand[i], breaks = "quantile", nbreaks = 5,
+       pal = brewer.pal(5, "PuBu"),
        border = NA, main = NULL)
   dev.off()
 }
