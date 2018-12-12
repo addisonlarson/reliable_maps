@@ -1,0 +1,58 @@
+---
+title: "How to use the Map Reliability Calculator"
+author: "Addison Larson"
+date: "`r Sys.Date()`"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 1. Download your data.
+You can do this using the [Census API](https://www.census.gov/data/developers/data-sets.html) (as seen below) or by visiting [American FactFinder](https://factfinder.census.gov/faces/nav/jsf/pages/index.xhtml) and downloading your data from there. The chunk below downloads the number of Hispanic or Latino residents at the census tract level for PA and NJ and subsets the data for Burlington, Camden, Gloucester, and Mercer Counties in NJ; and Bucks, Chester, Delaware, Montgomery, and Philadelphia Counties in PA.
+
+```{r pack, results = "hide", message = FALSE, warning = FALSE}
+library(tidycensus); library(tidyverse)
+trct <- get_acs(state = c("PA", "NJ"), geography = "tract",
+                variables = "B03003_003",
+                output = "wide") %>%
+  mutate(stcty = substr(GEOID, 1, 5)) %>%
+  subset(stcty %in% c("34005", "34007", "34015", "34021",
+                      "42017", "42029", "42045", "42091", "42101")) %>%
+  select(-stcty)
+```
+
+Here's what the results look like:
+
+```{r preview}
+head(trct)
+```
+
+## 2. Prep your data.
+The calculator will not work if you supply it extra columns, blank cells, or special characters. The chunk below grabs the estimate and the MOE columns and drops any observations with NAs.
+
+```{r cleanup}
+trct <- trct %>%
+  select(B03003_003E, B03003_003M) %>%
+  drop_na()
+```
+
+Here's what the results look like:
+
+```{r result}
+head(trct)
+```
+
+## 3. Export your data.
+Export data as a .csv. Change the file path below to somewhere on your PC.
+
+```{r export, results = "hide"}
+setwd("D:/alarson")
+write.csv(trct, file = "export.csv", row.names = FALSE)
+```
+
+## 4. Use the calculator.
+Visit the [Map Reliability Calculator](https://aplarson.shinyapps.io/MapClassificationAutoreporter/) and drop in your new dataset.
