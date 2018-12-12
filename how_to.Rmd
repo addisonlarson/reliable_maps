@@ -3,8 +3,8 @@ title: "How to use the Map Reliability Calculator"
 author: "Addison Larson"
 date: "`r Sys.Date()`"
 output:
-  html_document: default
   pdf_document: default
+  html_document: default
 ---
 
 ```{r setup, include = FALSE}
@@ -56,3 +56,20 @@ write.csv(trct, file = "export.csv", row.names = FALSE)
 
 ## 4. Use the calculator.
 Visit the [Map Reliability Calculator](https://aplarson.shinyapps.io/MapClassificationAutoreporter/) and drop in your new dataset.
+
+### The calculator has a lot of functions. Let's walk through some of them:
+1. **Data upload**, located top left. Click the **browse** button to add your dataset.
+    + **File has a header**, located top left. Uncheck this if your .csv has no column names.
+    + **Include estimates of 0 in error calculations**, located top left. Check this if you have lots of zeroes in your dataset.
+2. **Summary of expected errors**, located top center. A quick summary of the classification schemes and number of breaks good for your dataset.
+3. **Select number of classes**, located top left. Once you're set on a number of classes for your map, select the number in the drop-down menu. Your selection changes the results of **Error by number of classes**.
+4. **Acceptable error percentage**, located top left. Default is 10%.
+5. **Custom comma-delimited breaks**, located top left.
+6. **Error by number of classes**, located bottom center. When you select a number of classes, this section provides:
+    + Overall expected classification error
+    + Lower bound error by class
+    + Upper bound error by class
+    + Number of observations in each class
+    + Total class error
+7. **Summary of data uploaded**, located bottom left. Shows summary statistics of your data.
+8. **Break values**, located bottom left. This can be especially useful when you want to tweak the breaks of an existing classification scheme to make it better.
