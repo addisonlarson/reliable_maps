@@ -2,7 +2,7 @@
 materials on MOEs and reducing error through aggregation
 
 ## things that actually work:
-**The Map Reliability Calculator.** Find it online [here](https://aplarson.shinyapps.io/MapClassificationAutoreporter/). Check out how to use it [here](../master/how_to.html). Base functions written [here](../master/map_calc.R), and Shiny code [here](../master/map_calc_shiny.R).
+**The Map Reliability Calculator.** Find it online [here](https://aplarson.shinyapps.io/MapClassificationAutoreporter/). Check out how to use it [here](../master/how_to.pdf). Base functions written [here](../master/map_calc.R), and Shiny code [here](../master/map_calc_shiny.R).
 
 ## the rest of the things in this repository:
 * [sample_dat.R](../master/sample_dat.R) downloads data from the Census API and TIGER/LINE at the county, tract, and block group level, computes the percentage of Hispanic and Latino residents, and recalculates the margin of error. The first 75 lines are what's important; the back half is used for testing the size of CVs over different land areas and population densities.
