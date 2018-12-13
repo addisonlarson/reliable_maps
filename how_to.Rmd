@@ -4,6 +4,7 @@ author: "Addison Larson"
 date: "`r Sys.Date()`"
 output:
   pdf_document: default
+  word_document: default
   html_document: default
 ---
 
@@ -11,57 +12,53 @@ output:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## 1. Download your data.
-You can do this using the [Census API](https://www.census.gov/data/developers/data-sets.html) (as seen below) or by visiting [American FactFinder](https://factfinder.census.gov/faces/nav/jsf/pages/index.xhtml) and downloading your data from there. The chunk below downloads the number of Hispanic or Latino residents at the census tract level for PA and NJ and subsets the data for Burlington, Camden, Gloucester, and Mercer Counties in NJ; and Bucks, Chester, Delaware, Montgomery, and Philadelphia Counties in PA.
+**tl;dr** Download Census data. Get rid of extra columns, blank cells, and special characters. Export as a \texttt{.csv}. [\texttt{\underline{Use the calculator}}](https://aplarson.shinyapps.io/MapClassificationAutoreporter/).
+
+## 1. Download Census data.
+You can do this using the [\texttt{\underline{Census API}}](https://www.census.gov/data/developers/data-sets.html) (as seen below) or by visiting [\texttt{\underline{American FactFinder}}](https://factfinder.census.gov/faces/nav/jsf/pages/index.xhtml) and downloading your data from there. The chunk below uses the Census API to download the number of Hispanic or Latino residents at the census tract level for Philadelphia County, PA.
 
 ```{r pack, results = "hide", message = FALSE, warning = FALSE}
-library(tidycensus); library(tidyverse)
-trct <- get_acs(state = c("PA", "NJ"), geography = "tract",
-                variables = "B03003_003",
-                output = "wide") %>%
-  mutate(stcty = substr(GEOID, 1, 5)) %>%
-  subset(stcty %in% c("34005", "34007", "34015", "34021",
-                      "42017", "42029", "42045", "42091", "42101")) %>%
-  select(-stcty)
+require(tidycensus); require(tidyverse)
+data <- get_acs(state = "PA", county = 101, geography = "tract", variables = "B03003_003")
 ```
 
 Here's what the results look like:
 
 ```{r preview}
-head(trct)
+head(data)
 ```
 
-## 2. Prep your data.
-The calculator will not work if you supply it extra columns, blank cells, or special characters. The chunk below grabs the estimate and the MOE columns and drops any observations with NAs.
+## 2. Get rid of extra columns, blank cells, and special characters.
+The chunk below grabs the estimate and the MOE columns and drops any observations with \texttt{NAs}.
 
 ```{r cleanup}
-trct <- trct %>%
-  select(B03003_003E, B03003_003M) %>%
+data <- data %>%
+  select(estimate, moe) %>%
   drop_na()
 ```
 
-Here's what the results look like:
+### What your data should look like:
+Column names don't matter as long as the estimate is first and the MOE is second.
 
 ```{r result}
-head(trct)
+head(data)
 ```
 
-## 3. Export your data.
-Export data as a .csv. Change the file path below to somewhere on your PC.
+## 3. Export as a \texttt{.csv}.
+Change the file path below to somewhere on your PC.
 
 ```{r export, results = "hide"}
-setwd("D:/alarson")
-write.csv(trct, file = "export.csv", row.names = FALSE)
+write.csv(data, file = "D:/alarson/export.csv", row.names = FALSE)
 ```
 
 ## 4. Use the calculator.
-Visit the [Map Reliability Calculator](https://aplarson.shinyapps.io/MapClassificationAutoreporter/) and drop in your new dataset.
+Visit the [\texttt{\underline{Map Reliability Calculator}}](https://aplarson.shinyapps.io/MapClassificationAutoreporter/) and drop in your new dataset.
 
-### The calculator has a lot of functions. Let's walk through some of them:
+### The calculator has a lot of functions. Let's walk through them:
 1. **Data upload**, located top left. Click the **browse** button to add your dataset.
     + **File has a header**, located top left. Uncheck this if your .csv has no column names.
     + **Include estimates of 0 in error calculations**, located top left. Check this if you have lots of zeroes in your dataset.
-2. **Summary of expected errors**, located top center. A quick summary of the classification schemes and number of breaks good for your dataset.
+2. **Summary of expected errors**, located top center. A quick summary of the classification schemes and number of breaks well-suited for your dataset.
 3. **Select number of classes**, located top left. Once you're set on a number of classes for your map, select the number in the drop-down menu. Your selection changes the results of **Error by number of classes**.
 4. **Acceptable error percentage**, located top left. Default is 10%.
 5. **Custom comma-delimited breaks**, located top left.
