@@ -136,3 +136,62 @@ plot(nyc_nta["ntaname"],
      pal = cust_pal,
      border = "white", main = NULL)
 dev.off()
+
+# Bonus for example purposes: viz likelihood that an estimate is wrongly classed
+# Select number of classes
+noClasses <- 5
+# Function for percentage lower-bound errors
+lower <- function(x, i){
+  pnorm(as.numeric(as.character(x[i]$lowerBound)),
+        mean = x[i]$pct, sd = x[i]$sd,
+        lower.tail = TRUE) * 100
+}
+# Function for percentage upper-bound errors
+upper <- function(x, i){
+  pnorm(as.numeric(as.character(x[i]$upperBound)),
+        mean = x[i]$pct, sd = x[i]$sd,
+        lower.tail = FALSE) * 100
+}
+# Obtain breaks (just equal interval for now)
+eqIntervalBreaks <- seq(from = min(ethnTrct$pct),
+                        to = max(ethnTrct$pct),
+                        by = (max(ethnTrct$pct) - min(ethnTrct$pct)) / noClasses)
+# Drop NAs and prep data
+ethnTrct <- drop_na(ethnTrct)
+errorTest <- ethnTrct %>%
+  mutate(classCode = cut(pct, labels = FALSE,
+                         breaks = eqIntervalBreaks,
+                         include.lowest = TRUE, right = TRUE),
+         lowerBound = cut(pct, breaks = eqIntervalBreaks,
+                           labels = c(eqIntervalBreaks[1:length(eqIntervalBreaks) - 1]),
+                           include.lowest = TRUE, right = TRUE),
+         upperBound = cut(pct, breaks = eqIntervalBreaks,
+                           labels = c(eqIntervalBreaks[2:length(eqIntervalBreaks)]),
+                           include.lowest = TRUE, right = TRUE),
+         classCode = paste0("Class", classCode)
+         ) %>%
+  st_set_geometry(NULL)
+# Compute errors by class / easiest to do when you split by class
+errorTestL <- split(errorTest, errorTest$classCode)
+errorTestL[[1]]$lowerBound <- -Inf
+errorTestL[[length(errorTestL)]]$upperBound <- Inf
+lowerBoundErrors <- lapply(errorTestL, lower)
+upperBoundErrors <- lapply(errorTestL, upper)
+tot_error <- unlist(lowerBoundErrors) + unlist(upperBoundErrors)
+# Append back
+ethnTrct$tot_error <- (100 - tot_error)
+ethnTrct$Certainty <- ethnTrct$tot_error / 100
+
+theme_set(theme_minimal())
+png(here("figures", "class_error.png"), width = 10, height = 7.5, units = "in", res = 500)
+ethnTrct %>%
+  mutate(Class = cut_interval(pct, 5)) %>%
+  ggplot() + geom_sf(aes(fill = Class, color = Class, alpha = Certainty)) +
+  ggtitle("Simultaneously map classification error and estimate") +
+  theme(axis.line=element_blank(),
+        axis.text.x=element_blank(),
+        axis.text.y=element_blank(),
+        axis.ticks=element_blank(),
+        axis.title.x=element_blank(),
+        axis.title.y=element_blank())
+dev.off()
