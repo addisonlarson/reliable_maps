@@ -1,109 +1,60 @@
-# Map Classification Error Calculator
-# Great in R Studio. Doesn't translate to R Shiny.
-
-# Script proceeds in the following sections:
 # 1. INSTALL AND LOAD PACKAGES
-# 2. FUNCTIONS
-# 3. LOAD DATA (this section will likely change)
-# 4. DEFINE BREAKS
-# 5. CALCULATE EXPECTED PERCENTAGE CLASSIFICATION ERROR
-#   5a. Equal Interval
-#   5b. Jenks
-#   5c. Quantiles
-#   5d. Standard Deviation
-#   5e. User-Defined Breaks
-# 6. VIEW RESULTS
-
-# 1. INSTALL AND LOAD PACKAGES 
-rm(list=ls())
-pack <- function(pkg){
-  newpkg <- pkg[!(pkg %in% installed.packages()[, "Package"])]
-  if (length(newpkg)) 
-    install.packages(newpkg, dependencies = TRUE)
-  sapply(pkg, require, character.only = TRUE)
-}
-packages <- c("foreign", "rgdal", "BAMMtools", "sp")
-pack(packages)
+require(BAMMtools) # required
+require(tidycensus); require(tidyverse) # not required: used for test data download
 
 # 2. FUNCTIONS
 # Obtain percentage lower-bound errors
 lower <- function(x, i){
-  pnorm(as.numeric(as.character(x[i][, 6])),
-        mean = x[i][, 1], sd = x[i][, 3],
+  pnorm(as.numeric(as.character(x[i]$lowerBound)),
+        mean = x[i]$estimate, sd = x[i]$sd,
         lower.tail = TRUE) * 100
 }
 # Obtain percentage upper-bound errors
 upper <- function(x, i){
-  pnorm(as.numeric(as.character(x[i][, 7])),
-        mean = x[i][, 1], sd = x[i][, 3],
+  pnorm(as.numeric(as.character(x[i]$upperBound)),
+        mean = x[i]$estimate, sd = x[i]$sd,
         lower.tail = FALSE) * 100
 }
 # Obtain the mean error by map class
 average <- function(x, i){
   mean(x[i])
 }
-# Set up the function and data frame you'll need
-# to suggest the lowest-error choropleth mapping scheme
-suggestion <- function(x, i){
-  round(weighted.mean(x[i][, 4], x[i][, 3]), digits = 4)
-}
-Method <- c("Equal Interval", "Jenks", "Quantile",
-            "Standard Deviation", "User-Defined Interval")
-suggest <- data.frame(Method)
-# Rounding
-rounding <- function(x, i){
-}
 
 # 3. LOAD AND CLEAN DATA
-ipd <- read.csv("D:/alarson/MapReliabilityTool/1_TAZ_C13.csv")
-# ipd <- read.csv("D:/alarson/MapReliability/full_ipd.csv")
-# ipd[which(ipd$GEO_ID == 42101980900),] <- NA # Alex deleted these records
-# estimate <- ipd$Disabled_PercEst * 100
-# moe <- ipd$Disabled_PercMoe * 100
-# geoid <- ipd$GEO_ID
-geoid <- "FAKE"
-ipd <- cbind(geoid, ipd)
+dat <- get_acs(state = "PA", county = 101, geography = "tract", variables = "B03003_003") %>%
+  select(GEOID, estimate, moe) %>%
+  mutate(sd = moe / 1.645) %>%
+  drop_na()
 noClasses <- 3
-estimate <- ipd$taz_est
-moe <- ipd$taz_moe
-# According to https://www.census.gov/content/dam/Census/programs-surveys/acs/guidance/training-presentations/20180418_MOE.pdf
-# Slide 12, MOE = 1.645 * sqrt(variance)
-sd <- moe / 1.645
-dat <- data.frame(estimate = estimate, moe = moe, sd = sd, geoid = geoid)
-dat[dat == "-"] <- NA; dat[dat == "**"] <- NA
-dat <- dat[complete.cases(dat), ]
-estimate <- dat$estimate
-moe <- dat$moe
-
-# # Want to test this data in NYC's calculator?
-# exportData <- data.frame(estimate = estimate, moe = moe)
-# write.csv(exportData, file = "D:/alarson/MapReliability/test data.csv", row.names = FALSE)
 
 # 4. DEFINE BREAKS
-# Equal Interval
-eqIntervalBreaks <- seq(from = min(estimate),
-                        to = max(estimate),
-                        by = (max(estimate) - min(estimate)) / noClasses)
-# Jenks
-jenksBreaks <- getJenksBreaks(estimate, noClasses + 1)
-# Quantile
-quantileBreaks <- quantile(estimate,
-                           probs = seq(0, 1, length = noClasses + 1))
-# Half-Standard Deviation (+- 0.5, +- 1.5, etc.)
-halfStDevCount <- c(-1 * rev(seq(1, noClasses, by = 2)),
-                    seq(1, noClasses, by = 2))
-if((noClasses %% 2) == 1) {
-  halfStDevBreaks <- unlist(lapply(halfStDevCount,
-                                   function(i) (0.5 * i * sd(estimate)) + mean(estimate)))
-  halfStDevBreaks[[1]] <- ifelse(min(estimate) < halfStDevBreaks[[1]],
-                                 min(estimate), halfStDevBreaks[[1]])
-  halfStDevBreaks[[noClasses + 1]] <- ifelse(max(estimate) > halfStDevBreaks[[noClasses + 1]],
-                                             max(estimate), halfStDevBreaks[[noClasses + 1]])
-} else {
-  halfStDevBreaks <- NA
+eqInterval <- function(x, i){
+  seq(from = min(x),
+      to = max(x),
+      by = (max(x) - min(x)) / i)
 }
+eqIntervalBreaks <- eqInterval(dat$estimate, noClasses)
+jenksBreaks <- getJenksBreaks(dat$estimate, noClasses + 1)
+quantileBreaks <- quantile(dat$estimate, probs = seq(0, 1, length = noClasses + 1))
+stDevBreaks <- function(x, i){
+  halfStDevCount <- c(-1 * rev(seq(1, i, by = 2)),
+                      seq(1, i, by = 2))
+  if((i %% 2) == 1) {
+    halfStDevBreaks <- unlist(lapply(halfStDevCount,
+                                     function(i) (0.5 * i * sd(x)) + mean(x)))
+    halfStDevBreaks[[1]] <- ifelse(min(x) < halfStDevBreaks[[1]],
+                                   min(x), halfStDevBreaks[[1]])
+    halfStDevBreaks[[i + 1]] <- ifelse(max(x) > halfStDevBreaks[[i + 1]],
+                                               max(x), halfStDevBreaks[[i + 1]])
+  } else {
+    halfStDevBreaks <- NA
+  }
+  return(halfStDevBreaks)
+}
+halfStDevBreaks <- stDevBreaks(dat$estimate, noClasses)
 # User-Defined
-userBreaks <- c(min(estimate), 8, 12, 15, 40, max(estimate)) # Must include lowest and highest observation: if you want 4 classes, you'll have 5 numbers here
+# Must include lowest and highest observation: if you want 4 classes, you'll have 5 numbers here
+userBreaks <- c(min(dat$estimate), 100, 200, 400, 1000, max(dat$estimate))
 
 # 5. CALCULATE EXPECTED PERCENTAGE CLASSIFICATION ERROR
 # 5a. Equal Interval
@@ -247,12 +198,9 @@ errorsList <- list(totalErrorsE,
                    totalErrorsQ,
                    totalErrorsS,
                    totalErrorsU)
-errorsList <- lapply(errorsList, rounding)
+errorsList <- lapply(errorsList, function(x) {
+  x[] <- lapply(x, as.numeric)
+  x
+})
+errorsList[] <- lapply(errorsList, round, 3)
 errorsList
-# Suggest scheme with overall lowest percentage error
-suggest$PctError <- sapply(errorsList, suggestion)
-suggest
-# Note if user put in the wrong number of breaks
-if (length(userBreaks) != noClasses + 1){
-  print("Incorrect number of user-defined breaks.")
-}
