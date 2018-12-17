@@ -1,6 +1,30 @@
 library(BAMMtools)
 library(shiny)
 
+# Equal interval breaks
+eqIntervalBreaks <- function(x, i){
+  seq(from = min(x),
+      to = max(x),
+      by = (max(x) - min(x)) / i)
+}
+
+# Standard deviation breaks
+stDevBreaks <- function(x, i){
+  halfStDevCount <- c(-1 * rev(seq(1, i, by = 2)),
+                      seq(1, i, by = 2))
+  if((i %% 2) == 1) {
+    halfStDevBreaks <- unlist(lapply(halfStDevCount,
+                                     function(i) (0.5 * i * sd(x)) + mean(x)))
+    halfStDevBreaks[[1]] <- ifelse(min(x) < halfStDevBreaks[[1]],
+                                   min(x), halfStDevBreaks[[1]])
+    halfStDevBreaks[[i + 1]] <- ifelse(max(x) > halfStDevBreaks[[i + 1]],
+                                       max(x), halfStDevBreaks[[i + 1]])
+  } else {
+    halfStDevBreaks <- NA
+  }
+  return(halfStDevBreaks)
+}
+
 # Obtain percentage lower-bound errors
 lower <- function(x, i){
   pnorm(as.numeric(as.character(x[i][, 5])),
@@ -22,6 +46,7 @@ ui <- fluidPage(
   titlePanel("Map Classification Error Calculator"),
   fluidRow(
     column(4,
+           uiOutput("link"),
            fileInput("file1", "Upload two-column CSV file, where first column is estimate and second is MOE:",
                      accept = c(
                        "text/csv",
@@ -32,9 +57,8 @@ ui <- fluidPage(
            checkboxInput("header", "File has a header", TRUE),
            checkboxInput("zeroes", "Include estimates of 0 in error calculations", FALSE),
            htmlOutput("county_selector"),
-           textInput("pct", "Acceptable error percentage (Optional):", "10"),
+           textInput("pct", "Error threshold (Default is 10%):", "10"),
            textInput("vec1", "Custom comma-delimited breaks (Optional):","0.75,3.32"),
-           helpText("Maps are considered reliable if: 1) No single class has an expected error above 20%; and 2) The overall expected error is less than 10%."),
            textOutput("explainSummary"),
            verbatimTextOutput("printSummary"),
            textOutput("explainUB"),
@@ -220,7 +244,10 @@ server <- function(input, output, session) {
                 choices = c(2:7), # NEW: can do 2-9
                 selected = 5)
   })
-  
+  url <- a("here", href = "https://github.com/addisonlarson/reliable_maps/blob/master/how_to.pdf")
+  output$link <- renderUI({
+    tagList("Questions? Click ", url, "for a how-to.")
+  })
   output$verdictE2 <- renderText({
     inFile2 <- input$file1
     if (is.null(inFile2))
@@ -231,20 +258,13 @@ server <- function(input, output, session) {
     if (input$zeroes == TRUE){
       dat <- read.csv(inFile2$datapath, header = input$header)
     }
-    dat$stdev <- dat[[2]] / 1.645 # derive standard deviations from moes
+    dat$stdev <- dat[[2]] / 1.645
     myclasses <- 2
-    newbreaks <- seq(from = min(dat[[1]]),
-                     to = max(dat[[1]]),
-                     by = (max(dat[[1]]) - min(dat[[1]])) / myclasses)
-    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, # [[4]]
-                         include.lowest = TRUE, right = TRUE)
-    dat$lowerBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[1:length(newbreaks) - 1]), # [[5]]
+    newbreaks <- eqIntervalBreaks(dat[[1]], myclasses)
+    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, include.lowest = TRUE, right = TRUE)
+    dat$lowerBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[1:length(newbreaks) - 1]),
                           include.lowest = TRUE, right = TRUE)
-    dat$upperBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[2:length(newbreaks)]), # [[6]]
+    dat$upperBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[2:length(newbreaks)]),
                           include.lowest = TRUE, right = TRUE)
     dat$classCode <- paste0("Class ", dat[[4]])
     dat2 <- split(dat, dat[[4]])
@@ -261,6 +281,8 @@ server <- function(input, output, session) {
     colnames(totalErrorsE)[4] <- "Total Class Error"
     overallErrorsE <- weighted.mean(totalErrorsE[[4]], totalErrorsE[[3]], na.rm = TRUE)
     cutoff <- as.numeric(input$pct)
+    if (is.na(cutoff))
+      return("<span style=\"color:red\">ERROR: Numeric error threshold required</span>")
     if( overallErrorsE > cutoff ){
       return(paste0("<span style=\"color:red\">FLAG</span>", ": ", round(overallErrorsE, 2), "%"))
     }else{
@@ -278,20 +300,13 @@ server <- function(input, output, session) {
     if (input$zeroes == TRUE){
       dat <- read.csv(inFile2$datapath, header = input$header)
     }
-    dat$stdev <- dat[[2]] / 1.645 # derive standard deviations from moes
+    dat$stdev <- dat[[2]] / 1.645
     myclasses <- 2
-    newbreaks <- seq(from = min(dat[[1]]),
-                     to = max(dat[[1]]),
-                     by = (max(dat[[1]]) - min(dat[[1]])) / myclasses)
-    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, # [[4]]
-                         include.lowest = TRUE, right = TRUE)
-    dat$lowerBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[1:length(newbreaks) - 1]), # [[5]]
+    newbreaks <- eqIntervalBreaks(dat[[1]], myclasses)
+    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, include.lowest = TRUE, right = TRUE)
+    dat$lowerBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[1:length(newbreaks) - 1]),
                           include.lowest = TRUE, right = TRUE)
-    dat$upperBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[2:length(newbreaks)]), # [[6]]
+    dat$upperBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[2:length(newbreaks)]),
                           include.lowest = TRUE, right = TRUE)
     dat$classCode <- paste0("Class ", dat[[4]])
     dat2 <- split(dat, dat[[4]])
@@ -307,6 +322,8 @@ server <- function(input, output, session) {
     totalErrorsE[4] <- totalErrorsE[1] + totalErrorsE[2]
     colnames(totalErrorsE)[4] <- "Total Class Error"
     cutoff <- as.numeric(input$pct)
+    if (is.na(cutoff))
+      return(NULL)
     criteria <- ifelse(totalErrorsE[4] > cutoff * 2, 1, 0)
     if(1 %in% criteria){
       return(paste("<span style=\"color:red\">FLAG</span>"))
@@ -325,18 +342,13 @@ server <- function(input, output, session) {
     if (input$zeroes == TRUE){
       dat <- read.csv(inFile2$datapath, header = input$header)
     }
-    dat$stdev <- dat[[2]] / 1.645 # derive standard deviations from moes
+    dat$stdev <- dat[[2]] / 1.645
     myclasses <- 2
     newbreaks <- getJenksBreaks(dat[[1]], myclasses + 1)
-    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, # [[4]]
-                         include.lowest = TRUE, right = TRUE)
-    dat$lowerBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[1:length(newbreaks) - 1]), # [[5]]
+    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, include.lowest = TRUE, right = TRUE)
+    dat$lowerBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[1:length(newbreaks) - 1]),
                           include.lowest = TRUE, right = TRUE)
-    dat$upperBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[2:length(newbreaks)]), # [[6]]
+    dat$upperBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[2:length(newbreaks)]),
                           include.lowest = TRUE, right = TRUE)
     dat$classCode <- paste0("Class ", dat[[4]])
     dat2 <- split(dat, dat[[4]])
@@ -353,6 +365,8 @@ server <- function(input, output, session) {
     colnames(totalErrorsJ)[4] <- "Total Class Error"
     overallErrorsJ <- weighted.mean(totalErrorsJ[[4]], totalErrorsJ[[3]], na.rm = TRUE)
     cutoff <- as.numeric(input$pct)
+    if (is.na(cutoff))
+      return("<span style=\"color:red\">ERROR: Numeric error threshold required</span>")
     if( overallErrorsJ > cutoff ){
       return(paste0("<span style=\"color:red\">FLAG</span>", ": ", round(overallErrorsJ, 2), "%"))
     }else{
@@ -370,18 +384,13 @@ server <- function(input, output, session) {
     if (input$zeroes == TRUE){
       dat <- read.csv(inFile2$datapath, header = input$header)
     }
-    dat$stdev <- dat[[2]] / 1.645 # derive standard deviations from moes
+    dat$stdev <- dat[[2]] / 1.645
     myclasses <- 2
     newbreaks <- getJenksBreaks(dat[[1]], myclasses + 1)
-    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, # [[4]]
-                         include.lowest = TRUE, right = TRUE)
-    dat$lowerBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[1:length(newbreaks) - 1]), # [[5]]
+    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, include.lowest = TRUE, right = TRUE)
+    dat$lowerBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[1:length(newbreaks) - 1]),
                           include.lowest = TRUE, right = TRUE)
-    dat$upperBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[2:length(newbreaks)]), # [[6]]
+    dat$upperBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[2:length(newbreaks)]),
                           include.lowest = TRUE, right = TRUE)
     dat$classCode <- paste0("Class ", dat[[4]])
     dat2 <- split(dat, dat[[4]])
@@ -397,6 +406,8 @@ server <- function(input, output, session) {
     totalErrorsJ[4] <- totalErrorsJ[1] + totalErrorsJ[2]
     colnames(totalErrorsJ)[4] <- "Total Class Error"
     cutoff <- as.numeric(input$pct)
+    if (is.na(cutoff))
+      return(NULL)
     criteria <- ifelse(totalErrorsJ[4] > cutoff * 2, 1, 0)
     if(1 %in% criteria){
       return(paste("<span style=\"color:red\">FLAG</span>"))
@@ -415,20 +426,15 @@ server <- function(input, output, session) {
     if (input$zeroes == TRUE){
       dat <- read.csv(inFile2$datapath, header = input$header)
     }
-    dat$stdev <- dat[[2]] / 1.645 # derive standard deviations from moes
+    dat$stdev <- dat[[2]] / 1.645
     myclasses <- 2
     newbreaks <- quantile(dat[[1]], probs = seq(0, 1, length = myclasses + 1))
     if (length(unique(newbreaks)) != length(newbreaks))
       return("ERROR: Breaks not unique")
-    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, # [[4]]
-                         include.lowest = TRUE, right = TRUE)
-    dat$lowerBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[1:length(newbreaks) - 1]), # [[5]]
+    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, include.lowest = TRUE, right = TRUE)
+    dat$lowerBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[1:length(newbreaks) - 1]),
                           include.lowest = TRUE, right = TRUE)
-    dat$upperBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[2:length(newbreaks)]), # [[6]]
+    dat$upperBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[2:length(newbreaks)]),
                           include.lowest = TRUE, right = TRUE)
     dat$classCode <- paste0("Class ", dat[[4]])
     dat2 <- split(dat, dat[[4]])
@@ -445,6 +451,8 @@ server <- function(input, output, session) {
     colnames(totalErrorsQ)[4] <- "Total Class Error"
     overallErrorsQ <- weighted.mean(totalErrorsQ[[4]], totalErrorsQ[[3]], na.rm = TRUE)
     cutoff <- as.numeric(input$pct)
+    if (is.na(cutoff))
+      return("<span style=\"color:red\">ERROR: Numeric error threshold required</span>")
     if( overallErrorsQ > cutoff ){
       return(paste0("<span style=\"color:red\">FLAG</span>", ": ", round(overallErrorsQ, 2), "%"))
     }else{
@@ -462,20 +470,15 @@ server <- function(input, output, session) {
     if (input$zeroes == TRUE){
       dat <- read.csv(inFile2$datapath, header = input$header)
     }
-    dat$stdev <- dat[[2]] / 1.645 # derive standard deviations from moes
+    dat$stdev <- dat[[2]] / 1.645
     myclasses <- 2
     newbreaks <- quantile(dat[[1]], probs = seq(0, 1, length = myclasses + 1))
     if (length(unique(newbreaks)) != length(newbreaks))
       return("ERROR: Breaks not unique")
-    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, # [[4]]
-                         include.lowest = TRUE, right = TRUE)
-    dat$lowerBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[1:length(newbreaks) - 1]), # [[5]]
+    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, include.lowest = TRUE, right = TRUE)
+    dat$lowerBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[1:length(newbreaks) - 1]),
                           include.lowest = TRUE, right = TRUE)
-    dat$upperBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[2:length(newbreaks)]), # [[6]]
+    dat$upperBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[2:length(newbreaks)]),
                           include.lowest = TRUE, right = TRUE)
     dat$classCode <- paste0("Class ", dat[[4]])
     dat2 <- split(dat, dat[[4]])
@@ -491,6 +494,8 @@ server <- function(input, output, session) {
     totalErrorsQ[4] <- totalErrorsQ[1] + totalErrorsQ[2]
     colnames(totalErrorsQ)[4] <- "Total Class Error"
     cutoff <- as.numeric(input$pct)
+    if (is.na(cutoff))
+      return(NULL)
     criteria <- ifelse(totalErrorsQ[4] > cutoff * 2, 1, 0)
     if(1 %in% criteria){
       return(paste("<span style=\"color:red\">FLAG</span>"))
@@ -502,6 +507,9 @@ server <- function(input, output, session) {
     inFile2 <- input$file1
     if (is.null(inFile2))
       return(NULL)
+    cutoff <- as.numeric(input$pct)
+    if (is.na(cutoff))
+      return("<span style=\"color:red\">ERROR: Numeric error threshold required</span>")
     if((2 %% 2) == 0){
       return("NA")
     }
@@ -510,6 +518,9 @@ server <- function(input, output, session) {
   output$verdictST2 <- renderText({
     inFile2 <- input$file1
     if (is.null(inFile2))
+      return(NULL)
+    cutoff <- as.numeric(input$pct)
+    if (is.na(cutoff))
       return(NULL)
     if((2 %% 2) == 0){
       return("NA")
@@ -528,20 +539,13 @@ server <- function(input, output, session) {
     if (input$zeroes == TRUE){
       dat <- read.csv(inFile2$datapath, header = input$header)
     }
-    dat$stdev <- dat[[2]] / 1.645 # derive standard deviations from moes
+    dat$stdev <- dat[[2]] / 1.645
     myclasses <- 3
-    newbreaks <- seq(from = min(dat[[1]]),
-                     to = max(dat[[1]]),
-                     by = (max(dat[[1]]) - min(dat[[1]])) / myclasses)
-    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, # [[4]]
-                         include.lowest = TRUE, right = TRUE)
-    dat$lowerBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[1:length(newbreaks) - 1]), # [[5]]
+    newbreaks <- eqIntervalBreaks(dat[[1]], myclasses)
+    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, include.lowest = TRUE, right = TRUE)
+    dat$lowerBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[1:length(newbreaks) - 1]),
                           include.lowest = TRUE, right = TRUE)
-    dat$upperBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[2:length(newbreaks)]), # [[6]]
+    dat$upperBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[2:length(newbreaks)]),
                           include.lowest = TRUE, right = TRUE)
     dat$classCode <- paste0("Class ", dat[[4]])
     dat2 <- split(dat, dat[[4]])
@@ -558,6 +562,8 @@ server <- function(input, output, session) {
     colnames(totalErrorsE)[4] <- "Total Class Error"
     overallErrorsE <- weighted.mean(totalErrorsE[[4]], totalErrorsE[[3]], na.rm = TRUE)
     cutoff <- as.numeric(input$pct)
+    if (is.na(cutoff))
+      return(NULL)
     if( overallErrorsE > cutoff ){
       return(paste0("<span style=\"color:red\">FLAG</span>", ": ", round(overallErrorsE, 2), "%"))
     }else{
@@ -575,20 +581,13 @@ server <- function(input, output, session) {
     if (input$zeroes == TRUE){
       dat <- read.csv(inFile2$datapath, header = input$header)
     }
-    dat$stdev <- dat[[2]] / 1.645 # derive standard deviations from moes
+    dat$stdev <- dat[[2]] / 1.645
     myclasses <- 3
-    newbreaks <- seq(from = min(dat[[1]]),
-                     to = max(dat[[1]]),
-                     by = (max(dat[[1]]) - min(dat[[1]])) / myclasses)
-    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, # [[4]]
-                         include.lowest = TRUE, right = TRUE)
-    dat$lowerBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[1:length(newbreaks) - 1]), # [[5]]
+    newbreaks <- eqIntervalBreaks(dat[[1]], myclasses)
+    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, include.lowest = TRUE, right = TRUE)
+    dat$lowerBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[1:length(newbreaks) - 1]),
                           include.lowest = TRUE, right = TRUE)
-    dat$upperBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[2:length(newbreaks)]), # [[6]]
+    dat$upperBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[2:length(newbreaks)]),
                           include.lowest = TRUE, right = TRUE)
     dat$classCode <- paste0("Class ", dat[[4]])
     dat2 <- split(dat, dat[[4]])
@@ -604,6 +603,8 @@ server <- function(input, output, session) {
     totalErrorsE[4] <- totalErrorsE[1] + totalErrorsE[2]
     colnames(totalErrorsE)[4] <- "Total Class Error"
     cutoff <- as.numeric(input$pct)
+    if (is.na(cutoff))
+      return(NULL)
     criteria <- ifelse(totalErrorsE[4] > cutoff * 2, 1, 0)
     if(1 %in% criteria){
       return(paste("<span style=\"color:red\">FLAG</span>"))
@@ -622,18 +623,13 @@ server <- function(input, output, session) {
     if (input$zeroes == TRUE){
       dat <- read.csv(inFile2$datapath, header = input$header)
     }
-    dat$stdev <- dat[[2]] / 1.645 # derive standard deviations from moes
+    dat$stdev <- dat[[2]] / 1.645
     myclasses <- 3
     newbreaks <- getJenksBreaks(dat[[1]], myclasses + 1)
-    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, # [[4]]
-                         include.lowest = TRUE, right = TRUE)
-    dat$lowerBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[1:length(newbreaks) - 1]), # [[5]]
+    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, include.lowest = TRUE, right = TRUE)
+    dat$lowerBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[1:length(newbreaks) - 1]),
                           include.lowest = TRUE, right = TRUE)
-    dat$upperBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[2:length(newbreaks)]), # [[6]]
+    dat$upperBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[2:length(newbreaks)]),
                           include.lowest = TRUE, right = TRUE)
     dat$classCode <- paste0("Class ", dat[[4]])
     dat2 <- split(dat, dat[[4]])
@@ -650,6 +646,8 @@ server <- function(input, output, session) {
     colnames(totalErrorsJ)[4] <- "Total Class Error"
     overallErrorsJ <- weighted.mean(totalErrorsJ[[4]], totalErrorsJ[[3]], na.rm = TRUE)
     cutoff <- as.numeric(input$pct)
+    if (is.na(cutoff))
+      return(NULL)
     if( overallErrorsJ > cutoff ){
       return(paste0("<span style=\"color:red\">FLAG</span>", ": ", round(overallErrorsJ, 2), "%"))
     }else{
@@ -667,18 +665,13 @@ server <- function(input, output, session) {
     if (input$zeroes == TRUE){
       dat <- read.csv(inFile2$datapath, header = input$header)
     }
-    dat$stdev <- dat[[2]] / 1.645 # derive standard deviations from moes
+    dat$stdev <- dat[[2]] / 1.645
     myclasses <- 3
     newbreaks <- getJenksBreaks(dat[[1]], myclasses + 1)
-    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, # [[4]]
-                         include.lowest = TRUE, right = TRUE)
-    dat$lowerBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[1:length(newbreaks) - 1]), # [[5]]
+    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, include.lowest = TRUE, right = TRUE)
+    dat$lowerBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[1:length(newbreaks) - 1]),
                           include.lowest = TRUE, right = TRUE)
-    dat$upperBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[2:length(newbreaks)]), # [[6]]
+    dat$upperBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[2:length(newbreaks)]),
                           include.lowest = TRUE, right = TRUE)
     dat$classCode <- paste0("Class ", dat[[4]])
     dat2 <- split(dat, dat[[4]])
@@ -694,6 +687,8 @@ server <- function(input, output, session) {
     totalErrorsJ[4] <- totalErrorsJ[1] + totalErrorsJ[2]
     colnames(totalErrorsJ)[4] <- "Total Class Error"
     cutoff <- as.numeric(input$pct)
+    if (is.na(cutoff))
+      return(NULL)
     criteria <- ifelse(totalErrorsJ[4] > cutoff * 2, 1, 0)
     if(1 %in% criteria){
       return(paste("<span style=\"color:red\">FLAG</span>"))
@@ -712,20 +707,15 @@ server <- function(input, output, session) {
     if (input$zeroes == TRUE){
       dat <- read.csv(inFile2$datapath, header = input$header)
     }
-    dat$stdev <- dat[[2]] / 1.645 # derive standard deviations from moes
+    dat$stdev <- dat[[2]] / 1.645
     myclasses <- 3
     newbreaks <- quantile(dat[[1]], probs = seq(0, 1, length = myclasses + 1))
     if (length(unique(newbreaks)) != length(newbreaks))
       return("ERROR: Breaks not unique")
-    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, # [[4]]
-                         include.lowest = TRUE, right = TRUE)
-    dat$lowerBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[1:length(newbreaks) - 1]), # [[5]]
+    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, include.lowest = TRUE, right = TRUE)
+    dat$lowerBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[1:length(newbreaks) - 1]),
                           include.lowest = TRUE, right = TRUE)
-    dat$upperBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[2:length(newbreaks)]), # [[6]]
+    dat$upperBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[2:length(newbreaks)]),
                           include.lowest = TRUE, right = TRUE)
     dat$classCode <- paste0("Class ", dat[[4]])
     dat2 <- split(dat, dat[[4]])
@@ -742,6 +732,8 @@ server <- function(input, output, session) {
     colnames(totalErrorsQ)[4] <- "Total Class Error"
     overallErrorsQ <- weighted.mean(totalErrorsQ[[4]], totalErrorsQ[[3]], na.rm = TRUE)
     cutoff <- as.numeric(input$pct)
+    if (is.na(cutoff))
+      return(NULL)
     if( overallErrorsQ > cutoff ){
       return(paste0("<span style=\"color:red\">FLAG</span>", ": ", round(overallErrorsQ, 2), "%"))
     }else{
@@ -759,20 +751,15 @@ server <- function(input, output, session) {
     if (input$zeroes == TRUE){
       dat <- read.csv(inFile2$datapath, header = input$header)
     }
-    dat$stdev <- dat[[2]] / 1.645 # derive standard deviations from moes
+    dat$stdev <- dat[[2]] / 1.645
     myclasses <- 3
     newbreaks <- quantile(dat[[1]], probs = seq(0, 1, length = myclasses + 1))
     if (length(unique(newbreaks)) != length(newbreaks))
       return("ERROR: Breaks not unique")
-    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, # [[4]]
-                         include.lowest = TRUE, right = TRUE)
-    dat$lowerBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[1:length(newbreaks) - 1]), # [[5]]
+    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, include.lowest = TRUE, right = TRUE)
+    dat$lowerBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[1:length(newbreaks) - 1]),
                           include.lowest = TRUE, right = TRUE)
-    dat$upperBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[2:length(newbreaks)]), # [[6]]
+    dat$upperBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[2:length(newbreaks)]),
                           include.lowest = TRUE, right = TRUE)
     dat$classCode <- paste0("Class ", dat[[4]])
     dat2 <- split(dat, dat[[4]])
@@ -788,6 +775,8 @@ server <- function(input, output, session) {
     totalErrorsQ[4] <- totalErrorsQ[1] + totalErrorsQ[2]
     colnames(totalErrorsQ)[4] <- "Total Class Error"
     cutoff <- as.numeric(input$pct)
+    if (is.na(cutoff))
+      return(NULL)
     criteria <- ifelse(totalErrorsQ[4] > cutoff * 2, 1, 0)
     if(1 %in% criteria){
       return(paste("<span style=\"color:red\">FLAG</span>"))
@@ -808,31 +797,13 @@ server <- function(input, output, session) {
     if (input$zeroes == TRUE){
       dat <- read.csv(inFile2$datapath, header = input$header)
     }
-    dat$stdev <- dat[[2]] / 1.645 # derive standard deviations from moes
+    dat$stdev <- dat[[2]] / 1.645
     myclasses <- 3
-    # Half-Standard Deviation (+- 0.5, +- 1.5, etc.)
-    halfStDevCount <- c(-1 * rev(seq(1, myclasses, by = 2)),
-                        seq(1, myclasses, by = 2))
-    if((myclasses %% 2) == 1) {
-      halfStDevBreaks <- unlist(lapply(halfStDevCount,
-                                       function(i) (0.5 * i * sd(dat[[1]])) + mean(dat[[1]])))
-      halfStDevBreaks[[1]] <- ifelse(min(dat[[1]]) < halfStDevBreaks[[1]],
-                                     min(dat[[1]]), halfStDevBreaks[[1]])
-      halfStDevBreaks[[myclasses + 1]] <- ifelse(max(dat[[1]]) > halfStDevBreaks[[myclasses + 1]],
-                                                 max(dat[[1]]), halfStDevBreaks[[myclasses + 1]])
-    } else {
-      halfStDevBreaks <- NA
-    }
-    newbreaks <- halfStDevBreaks
-    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, # [[4]]
-                         include.lowest = TRUE, right = TRUE)
-    dat$lowerBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[1:length(newbreaks) - 1]), # [[5]]
+    newbreaks <- stDevBreaks(dat[[1]], myclasses)
+    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, include.lowest = TRUE, right = TRUE)
+    dat$lowerBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[1:length(newbreaks) - 1]),
                           include.lowest = TRUE, right = TRUE)
-    dat$upperBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[2:length(newbreaks)]), # [[6]]
+    dat$upperBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[2:length(newbreaks)]),
                           include.lowest = TRUE, right = TRUE)
     dat$classCode <- paste0("Class ", dat[[4]])
     dat2 <- split(dat, dat[[4]])
@@ -849,6 +820,8 @@ server <- function(input, output, session) {
     colnames(totalErrorsS)[4] <- "Total Class Error"
     overallErrorsS <- weighted.mean(totalErrorsS[[4]], totalErrorsS[[3]], na.rm = TRUE)
     cutoff <- as.numeric(input$pct)
+    if (is.na(cutoff))
+      return(NULL)
     if( overallErrorsS > cutoff ){
       return(paste0("<span style=\"color:red\">FLAG</span>", ": ", round(overallErrorsS, 2), "%"))
     }else{
@@ -869,31 +842,13 @@ server <- function(input, output, session) {
     if (input$zeroes == TRUE){
       dat <- read.csv(inFile2$datapath, header = input$header)
     }
-    dat$stdev <- dat[[2]] / 1.645 # derive standard deviations from moes
+    dat$stdev <- dat[[2]] / 1.645
     myclasses <- 3
-    # Half-Standard Deviation (+- 0.5, +- 1.5, etc.)
-    halfStDevCount <- c(-1 * rev(seq(1, myclasses, by = 2)),
-                        seq(1, myclasses, by = 2))
-    if((myclasses %% 2) == 1) {
-      halfStDevBreaks <- unlist(lapply(halfStDevCount,
-                                       function(i) (0.5 * i * sd(dat[[1]])) + mean(dat[[1]])))
-      halfStDevBreaks[[1]] <- ifelse(min(dat[[1]]) < halfStDevBreaks[[1]],
-                                     min(dat[[1]]), halfStDevBreaks[[1]])
-      halfStDevBreaks[[myclasses + 1]] <- ifelse(max(dat[[1]]) > halfStDevBreaks[[myclasses + 1]],
-                                                 max(dat[[1]]), halfStDevBreaks[[myclasses + 1]])
-    } else {
-      halfStDevBreaks <- NA
-    }
-    newbreaks <- halfStDevBreaks
-    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, # [[4]]
-                         include.lowest = TRUE, right = TRUE)
-    dat$lowerBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[1:length(newbreaks) - 1]), # [[5]]
+    newbreaks <- stDevBreaks(dat[[1]], myclasses)
+    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, include.lowest = TRUE, right = TRUE)
+    dat$lowerBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[1:length(newbreaks) - 1]),
                           include.lowest = TRUE, right = TRUE)
-    dat$upperBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[2:length(newbreaks)]), # [[6]]
+    dat$upperBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[2:length(newbreaks)]),
                           include.lowest = TRUE, right = TRUE)
     dat$classCode <- paste0("Class ", dat[[4]])
     dat2 <- split(dat, dat[[4]])
@@ -909,6 +864,8 @@ server <- function(input, output, session) {
     totalErrorsS[4] <- totalErrorsS[1] + totalErrorsS[2]
     colnames(totalErrorsS)[4] <- "Total Class Error"
     cutoff <- as.numeric(input$pct)
+    if (is.na(cutoff))
+      return(NULL)
     criteria <- ifelse(totalErrorsS[4] > cutoff * 2, 1, 0)
     if(1 %in% criteria){
       return(paste("<span style=\"color:red\">FLAG</span>"))
@@ -929,20 +886,13 @@ server <- function(input, output, session) {
     if (input$zeroes == TRUE){
       dat <- read.csv(inFile2$datapath, header = input$header)
     }
-    dat$stdev <- dat[[2]] / 1.645 # derive standard deviations from moes
+    dat$stdev <- dat[[2]] / 1.645
     myclasses <- 4
-    newbreaks <- seq(from = min(dat[[1]]),
-                     to = max(dat[[1]]),
-                     by = (max(dat[[1]]) - min(dat[[1]])) / myclasses)
-    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, # [[4]]
-                         include.lowest = TRUE, right = TRUE)
-    dat$lowerBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[1:length(newbreaks) - 1]), # [[5]]
+    newbreaks <- eqIntervalBreaks(dat[[1]], myclasses)
+    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, include.lowest = TRUE, right = TRUE)
+    dat$lowerBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[1:length(newbreaks) - 1]),
                           include.lowest = TRUE, right = TRUE)
-    dat$upperBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[2:length(newbreaks)]), # [[6]]
+    dat$upperBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[2:length(newbreaks)]),
                           include.lowest = TRUE, right = TRUE)
     dat$classCode <- paste0("Class ", dat[[4]])
     dat2 <- split(dat, dat[[4]])
@@ -959,6 +909,8 @@ server <- function(input, output, session) {
     colnames(totalErrorsE)[4] <- "Total Class Error"
     overallErrorsE <- weighted.mean(totalErrorsE[[4]], totalErrorsE[[3]], na.rm = TRUE)
     cutoff <- as.numeric(input$pct)
+    if (is.na(cutoff))
+      return(NULL)
     if( overallErrorsE > cutoff ){
       return(paste0("<span style=\"color:red\">FLAG</span>", ": ", round(overallErrorsE, 2), "%"))
     }else{
@@ -976,20 +928,13 @@ server <- function(input, output, session) {
     if (input$zeroes == TRUE){
       dat <- read.csv(inFile2$datapath, header = input$header)
     }
-    dat$stdev <- dat[[2]] / 1.645 # derive standard deviations from moes
+    dat$stdev <- dat[[2]] / 1.645
     myclasses <- 4
-    newbreaks <- seq(from = min(dat[[1]]),
-                     to = max(dat[[1]]),
-                     by = (max(dat[[1]]) - min(dat[[1]])) / myclasses)
-    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, # [[4]]
-                         include.lowest = TRUE, right = TRUE)
-    dat$lowerBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[1:length(newbreaks) - 1]), # [[5]]
+    newbreaks <- eqIntervalBreaks(dat[[1]], myclasses)
+    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, include.lowest = TRUE, right = TRUE)
+    dat$lowerBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[1:length(newbreaks) - 1]),
                           include.lowest = TRUE, right = TRUE)
-    dat$upperBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[2:length(newbreaks)]), # [[6]]
+    dat$upperBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[2:length(newbreaks)]),
                           include.lowest = TRUE, right = TRUE)
     dat$classCode <- paste0("Class ", dat[[4]])
     dat2 <- split(dat, dat[[4]])
@@ -1005,6 +950,8 @@ server <- function(input, output, session) {
     totalErrorsE[4] <- totalErrorsE[1] + totalErrorsE[2]
     colnames(totalErrorsE)[4] <- "Total Class Error"
     cutoff <- as.numeric(input$pct)
+    if (is.na(cutoff))
+      return(NULL)
     criteria <- ifelse(totalErrorsE[4] > cutoff * 2, 1, 0)
     if(1 %in% criteria){
       return(paste("<span style=\"color:red\">FLAG</span>"))
@@ -1023,18 +970,13 @@ server <- function(input, output, session) {
     if (input$zeroes == TRUE){
       dat <- read.csv(inFile2$datapath, header = input$header)
     }
-    dat$stdev <- dat[[2]] / 1.645 # derive standard deviations from moes
+    dat$stdev <- dat[[2]] / 1.645
     myclasses <- 4
     newbreaks <- getJenksBreaks(dat[[1]], myclasses + 1)
-    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, # [[4]]
-                         include.lowest = TRUE, right = TRUE)
-    dat$lowerBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[1:length(newbreaks) - 1]), # [[5]]
+    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, include.lowest = TRUE, right = TRUE)
+    dat$lowerBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[1:length(newbreaks) - 1]),
                           include.lowest = TRUE, right = TRUE)
-    dat$upperBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[2:length(newbreaks)]), # [[6]]
+    dat$upperBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[2:length(newbreaks)]),
                           include.lowest = TRUE, right = TRUE)
     dat$classCode <- paste0("Class ", dat[[4]])
     dat2 <- split(dat, dat[[4]])
@@ -1051,6 +993,8 @@ server <- function(input, output, session) {
     colnames(totalErrorsJ)[4] <- "Total Class Error"
     overallErrorsJ <- weighted.mean(totalErrorsJ[[4]], totalErrorsJ[[3]], na.rm = TRUE)
     cutoff <- as.numeric(input$pct)
+    if (is.na(cutoff))
+      return(NULL)
     if( overallErrorsJ > cutoff ){
       return(paste0("<span style=\"color:red\">FLAG</span>", ": ", round(overallErrorsJ, 2), "%"))
     }else{
@@ -1068,18 +1012,13 @@ server <- function(input, output, session) {
     if (input$zeroes == TRUE){
       dat <- read.csv(inFile2$datapath, header = input$header)
     }
-    dat$stdev <- dat[[2]] / 1.645 # derive standard deviations from moes
+    dat$stdev <- dat[[2]] / 1.645
     myclasses <- 4
     newbreaks <- getJenksBreaks(dat[[1]], myclasses + 1)
-    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, # [[4]]
-                         include.lowest = TRUE, right = TRUE)
-    dat$lowerBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[1:length(newbreaks) - 1]), # [[5]]
+    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, include.lowest = TRUE, right = TRUE)
+    dat$lowerBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[1:length(newbreaks) - 1]),
                           include.lowest = TRUE, right = TRUE)
-    dat$upperBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[2:length(newbreaks)]), # [[6]]
+    dat$upperBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[2:length(newbreaks)]),
                           include.lowest = TRUE, right = TRUE)
     dat$classCode <- paste0("Class ", dat[[4]])
     dat2 <- split(dat, dat[[4]])
@@ -1095,6 +1034,8 @@ server <- function(input, output, session) {
     totalErrorsJ[4] <- totalErrorsJ[1] + totalErrorsJ[2]
     colnames(totalErrorsJ)[4] <- "Total Class Error"
     cutoff <- as.numeric(input$pct)
+    if (is.na(cutoff))
+      return(NULL)
     criteria <- ifelse(totalErrorsJ[4] > cutoff * 2, 1, 0)
     if(1 %in% criteria){
       return(paste("<span style=\"color:red\">FLAG</span>"))
@@ -1113,20 +1054,15 @@ server <- function(input, output, session) {
     if (input$zeroes == TRUE){
       dat <- read.csv(inFile2$datapath, header = input$header)
     }
-    dat$stdev <- dat[[2]] / 1.645 # derive standard deviations from moes
+    dat$stdev <- dat[[2]] / 1.645
     myclasses <- 4
     newbreaks <- quantile(dat[[1]], probs = seq(0, 1, length = myclasses + 1))
     if (length(unique(newbreaks)) != length(newbreaks))
       return("ERROR: Breaks not unique")
-    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, # [[4]]
-                         include.lowest = TRUE, right = TRUE)
-    dat$lowerBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[1:length(newbreaks) - 1]), # [[5]]
+    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, include.lowest = TRUE, right = TRUE)
+    dat$lowerBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[1:length(newbreaks) - 1]),
                           include.lowest = TRUE, right = TRUE)
-    dat$upperBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[2:length(newbreaks)]), # [[6]]
+    dat$upperBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[2:length(newbreaks)]),
                           include.lowest = TRUE, right = TRUE)
     dat$classCode <- paste0("Class ", dat[[4]])
     dat2 <- split(dat, dat[[4]])
@@ -1143,6 +1079,8 @@ server <- function(input, output, session) {
     colnames(totalErrorsQ)[4] <- "Total Class Error"
     overallErrorsQ <- weighted.mean(totalErrorsQ[[4]], totalErrorsQ[[3]], na.rm = TRUE)
     cutoff <- as.numeric(input$pct)
+    if (is.na(cutoff))
+      return(NULL)
     if( overallErrorsQ > cutoff ){
       return(paste0("<span style=\"color:red\">FLAG</span>", ": ", round(overallErrorsQ, 2), "%"))
     }else{
@@ -1160,20 +1098,15 @@ server <- function(input, output, session) {
     if (input$zeroes == TRUE){
       dat <- read.csv(inFile2$datapath, header = input$header)
     }
-    dat$stdev <- dat[[2]] / 1.645 # derive standard deviations from moes
+    dat$stdev <- dat[[2]] / 1.645
     myclasses <- 4
     newbreaks <- quantile(dat[[1]], probs = seq(0, 1, length = myclasses + 1))
     if (length(unique(newbreaks)) != length(newbreaks))
       return("ERROR: Breaks not unique")
-    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, # [[4]]
-                         include.lowest = TRUE, right = TRUE)
-    dat$lowerBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[1:length(newbreaks) - 1]), # [[5]]
+    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, include.lowest = TRUE, right = TRUE)
+    dat$lowerBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[1:length(newbreaks) - 1]),
                           include.lowest = TRUE, right = TRUE)
-    dat$upperBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[2:length(newbreaks)]), # [[6]]
+    dat$upperBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[2:length(newbreaks)]),
                           include.lowest = TRUE, right = TRUE)
     dat$classCode <- paste0("Class ", dat[[4]])
     dat2 <- split(dat, dat[[4]])
@@ -1189,6 +1122,8 @@ server <- function(input, output, session) {
     totalErrorsQ[4] <- totalErrorsQ[1] + totalErrorsQ[2]
     colnames(totalErrorsQ)[4] <- "Total Class Error"
     cutoff <- as.numeric(input$pct)
+    if (is.na(cutoff))
+      return(NULL)
     criteria <- ifelse(totalErrorsQ[4] > cutoff * 2, 1, 0)
     if(1 %in% criteria){
       return(paste("<span style=\"color:red\">FLAG</span>"))
@@ -1200,6 +1135,9 @@ server <- function(input, output, session) {
     inFile2 <- input$file1
     if (is.null(inFile2))
       return(NULL)
+    cutoff <- as.numeric(input$pct)
+    if (is.na(cutoff))
+      return(NULL)
     if((4 %% 2) == 0){
       return("NA")
     }
@@ -1208,6 +1146,9 @@ server <- function(input, output, session) {
   output$verdictST4 <- renderText({
     inFile2 <- input$file1
     if (is.null(inFile2))
+      return(NULL)
+    cutoff <- as.numeric(input$pct)
+    if (is.na(cutoff))
       return(NULL)
     if((4 %% 2) == 0){
       return("NA")
@@ -1226,20 +1167,13 @@ server <- function(input, output, session) {
     if (input$zeroes == TRUE){
       dat <- read.csv(inFile2$datapath, header = input$header)
     }
-    dat$stdev <- dat[[2]] / 1.645 # derive standard deviations from moes
+    dat$stdev <- dat[[2]] / 1.645
     myclasses <- 5
-    newbreaks <- seq(from = min(dat[[1]]),
-                     to = max(dat[[1]]),
-                     by = (max(dat[[1]]) - min(dat[[1]])) / myclasses)
-    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, # [[4]]
-                         include.lowest = TRUE, right = TRUE)
-    dat$lowerBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[1:length(newbreaks) - 1]), # [[5]]
+    newbreaks <- eqIntervalBreaks(dat[[1]], myclasses)
+    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, include.lowest = TRUE, right = TRUE)
+    dat$lowerBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[1:length(newbreaks) - 1]),
                           include.lowest = TRUE, right = TRUE)
-    dat$upperBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[2:length(newbreaks)]), # [[6]]
+    dat$upperBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[2:length(newbreaks)]),
                           include.lowest = TRUE, right = TRUE)
     dat$classCode <- paste0("Class ", dat[[4]])
     dat2 <- split(dat, dat[[4]])
@@ -1256,6 +1190,8 @@ server <- function(input, output, session) {
     colnames(totalErrorsE)[4] <- "Total Class Error"
     overallErrorsE <- weighted.mean(totalErrorsE[[4]], totalErrorsE[[3]], na.rm = TRUE)
     cutoff <- as.numeric(input$pct)
+    if (is.na(cutoff))
+      return(NULL)
     if( overallErrorsE > cutoff ){
       return(paste0("<span style=\"color:red\">FLAG</span>", ": ", round(overallErrorsE, 2), "%"))
     }else{
@@ -1273,20 +1209,13 @@ server <- function(input, output, session) {
     if (input$zeroes == TRUE){
       dat <- read.csv(inFile2$datapath, header = input$header)
     }
-    dat$stdev <- dat[[2]] / 1.645 # derive standard deviations from moes
+    dat$stdev <- dat[[2]] / 1.645
     myclasses <- 5
-    newbreaks <- seq(from = min(dat[[1]]),
-                     to = max(dat[[1]]),
-                     by = (max(dat[[1]]) - min(dat[[1]])) / myclasses)
-    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, # [[4]]
-                         include.lowest = TRUE, right = TRUE)
-    dat$lowerBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[1:length(newbreaks) - 1]), # [[5]]
+    newbreaks <- eqIntervalBreaks(dat[[1]], myclasses)
+    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, include.lowest = TRUE, right = TRUE)
+    dat$lowerBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[1:length(newbreaks) - 1]),
                           include.lowest = TRUE, right = TRUE)
-    dat$upperBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[2:length(newbreaks)]), # [[6]]
+    dat$upperBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[2:length(newbreaks)]),
                           include.lowest = TRUE, right = TRUE)
     dat$classCode <- paste0("Class ", dat[[4]])
     dat2 <- split(dat, dat[[4]])
@@ -1302,6 +1231,8 @@ server <- function(input, output, session) {
     totalErrorsE[4] <- totalErrorsE[1] + totalErrorsE[2]
     colnames(totalErrorsE)[4] <- "Total Class Error"
     cutoff <- as.numeric(input$pct)
+    if (is.na(cutoff))
+      return(NULL)
     criteria <- ifelse(totalErrorsE[4] > cutoff * 2, 1, 0)
     if(1 %in% criteria){
       return(paste("<span style=\"color:red\">FLAG</span>"))
@@ -1320,18 +1251,13 @@ server <- function(input, output, session) {
     if (input$zeroes == TRUE){
       dat <- read.csv(inFile2$datapath, header = input$header)
     }
-    dat$stdev <- dat[[2]] / 1.645 # derive standard deviations from moes
+    dat$stdev <- dat[[2]] / 1.645
     myclasses <- 5
     newbreaks <- getJenksBreaks(dat[[1]], myclasses + 1)
-    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, # [[4]]
-                         include.lowest = TRUE, right = TRUE)
-    dat$lowerBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[1:length(newbreaks) - 1]), # [[5]]
+    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, include.lowest = TRUE, right = TRUE)
+    dat$lowerBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[1:length(newbreaks) - 1]),
                           include.lowest = TRUE, right = TRUE)
-    dat$upperBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[2:length(newbreaks)]), # [[6]]
+    dat$upperBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[2:length(newbreaks)]),
                           include.lowest = TRUE, right = TRUE)
     dat$classCode <- paste0("Class ", dat[[4]])
     dat2 <- split(dat, dat[[4]])
@@ -1348,6 +1274,8 @@ server <- function(input, output, session) {
     colnames(totalErrorsJ)[4] <- "Total Class Error"
     overallErrorsJ <- weighted.mean(totalErrorsJ[[4]], totalErrorsJ[[3]], na.rm = TRUE)
     cutoff <- as.numeric(input$pct)
+    if (is.na(cutoff))
+      return(NULL)
     if( overallErrorsJ > cutoff ){
       return(paste0("<span style=\"color:red\">FLAG</span>", ": ", round(overallErrorsJ, 2), "%"))
     }else{
@@ -1365,18 +1293,13 @@ server <- function(input, output, session) {
     if (input$zeroes == TRUE){
       dat <- read.csv(inFile2$datapath, header = input$header)
     }
-    dat$stdev <- dat[[2]] / 1.645 # derive standard deviations from moes
+    dat$stdev <- dat[[2]] / 1.645
     myclasses <- 5
     newbreaks <- getJenksBreaks(dat[[1]], myclasses + 1)
-    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, # [[4]]
-                         include.lowest = TRUE, right = TRUE)
-    dat$lowerBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[1:length(newbreaks) - 1]), # [[5]]
+    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, include.lowest = TRUE, right = TRUE)
+    dat$lowerBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[1:length(newbreaks) - 1]),
                           include.lowest = TRUE, right = TRUE)
-    dat$upperBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[2:length(newbreaks)]), # [[6]]
+    dat$upperBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[2:length(newbreaks)]),
                           include.lowest = TRUE, right = TRUE)
     dat$classCode <- paste0("Class ", dat[[4]])
     dat2 <- split(dat, dat[[4]])
@@ -1392,6 +1315,8 @@ server <- function(input, output, session) {
     totalErrorsJ[4] <- totalErrorsJ[1] + totalErrorsJ[2]
     colnames(totalErrorsJ)[4] <- "Total Class Error"
     cutoff <- as.numeric(input$pct)
+    if (is.na(cutoff))
+      return(NULL)
     criteria <- ifelse(totalErrorsJ[4] > cutoff * 2, 1, 0)
     if(1 %in% criteria){
       return(paste("<span style=\"color:red\">FLAG</span>"))
@@ -1410,20 +1335,15 @@ server <- function(input, output, session) {
     if (input$zeroes == TRUE){
       dat <- read.csv(inFile2$datapath, header = input$header)
     }
-    dat$stdev <- dat[[2]] / 1.645 # derive standard deviations from moes
+    dat$stdev <- dat[[2]] / 1.645
     myclasses <- 5
     newbreaks <- quantile(dat[[1]], probs = seq(0, 1, length = myclasses + 1))
     if (length(unique(newbreaks)) != length(newbreaks))
       return("ERROR: Breaks not unique")
-    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, # [[4]]
-                         include.lowest = TRUE, right = TRUE)
-    dat$lowerBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[1:length(newbreaks) - 1]), # [[5]]
+    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, include.lowest = TRUE, right = TRUE)
+    dat$lowerBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[1:length(newbreaks) - 1]),
                           include.lowest = TRUE, right = TRUE)
-    dat$upperBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[2:length(newbreaks)]), # [[6]]
+    dat$upperBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[2:length(newbreaks)]),
                           include.lowest = TRUE, right = TRUE)
     dat$classCode <- paste0("Class ", dat[[4]])
     dat2 <- split(dat, dat[[4]])
@@ -1440,6 +1360,8 @@ server <- function(input, output, session) {
     colnames(totalErrorsQ)[4] <- "Total Class Error"
     overallErrorsQ <- weighted.mean(totalErrorsQ[[4]], totalErrorsQ[[3]], na.rm = TRUE)
     cutoff <- as.numeric(input$pct)
+    if (is.na(cutoff))
+      return(NULL)
     if( overallErrorsQ > cutoff ){
       return(paste0("<span style=\"color:red\">FLAG</span>", ": ", round(overallErrorsQ, 2), "%"))
     }else{
@@ -1457,20 +1379,15 @@ server <- function(input, output, session) {
     if (input$zeroes == TRUE){
       dat <- read.csv(inFile2$datapath, header = input$header)
     }
-    dat$stdev <- dat[[2]] / 1.645 # derive standard deviations from moes
+    dat$stdev <- dat[[2]] / 1.645
     myclasses <- 5
     newbreaks <- quantile(dat[[1]], probs = seq(0, 1, length = myclasses + 1))
     if (length(unique(newbreaks)) != length(newbreaks))
       return("ERROR: Breaks not unique")
-    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, # [[4]]
-                         include.lowest = TRUE, right = TRUE)
-    dat$lowerBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[1:length(newbreaks) - 1]), # [[5]]
+    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, include.lowest = TRUE, right = TRUE)
+    dat$lowerBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[1:length(newbreaks) - 1]),
                           include.lowest = TRUE, right = TRUE)
-    dat$upperBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[2:length(newbreaks)]), # [[6]]
+    dat$upperBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[2:length(newbreaks)]),
                           include.lowest = TRUE, right = TRUE)
     dat$classCode <- paste0("Class ", dat[[4]])
     dat2 <- split(dat, dat[[4]])
@@ -1486,6 +1403,8 @@ server <- function(input, output, session) {
     totalErrorsQ[4] <- totalErrorsQ[1] + totalErrorsQ[2]
     colnames(totalErrorsQ)[4] <- "Total Class Error"
     cutoff <- as.numeric(input$pct)
+    if (is.na(cutoff))
+      return(NULL)
     criteria <- ifelse(totalErrorsQ[4] > cutoff * 2, 1, 0)
     if(1 %in% criteria){
       return(paste("<span style=\"color:red\">FLAG</span>"))
@@ -1506,31 +1425,13 @@ server <- function(input, output, session) {
     if (input$zeroes == TRUE){
       dat <- read.csv(inFile2$datapath, header = input$header)
     }
-    dat$stdev <- dat[[2]] / 1.645 # derive standard deviations from moes
+    dat$stdev <- dat[[2]] / 1.645
     myclasses <- 5
-    # Half-Standard Deviation (+- 0.5, +- 1.5, etc.)
-    halfStDevCount <- c(-1 * rev(seq(1, myclasses, by = 2)),
-                        seq(1, myclasses, by = 2))
-    if((myclasses %% 2) == 1) {
-      halfStDevBreaks <- unlist(lapply(halfStDevCount,
-                                       function(i) (0.5 * i * sd(dat[[1]])) + mean(dat[[1]])))
-      halfStDevBreaks[[1]] <- ifelse(min(dat[[1]]) < halfStDevBreaks[[1]],
-                                     min(dat[[1]]), halfStDevBreaks[[1]])
-      halfStDevBreaks[[myclasses + 1]] <- ifelse(max(dat[[1]]) > halfStDevBreaks[[myclasses + 1]],
-                                                 max(dat[[1]]), halfStDevBreaks[[myclasses + 1]])
-    } else {
-      halfStDevBreaks <- NA
-    }
-    newbreaks <- halfStDevBreaks
-    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, # [[4]]
-                         include.lowest = TRUE, right = TRUE)
-    dat$lowerBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[1:length(newbreaks) - 1]), # [[5]]
+    newbreaks <- stDevBreaks(dat[[1]], myclasses)
+    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, include.lowest = TRUE, right = TRUE)
+    dat$lowerBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[1:length(newbreaks) - 1]),
                           include.lowest = TRUE, right = TRUE)
-    dat$upperBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[2:length(newbreaks)]), # [[6]]
+    dat$upperBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[2:length(newbreaks)]),
                           include.lowest = TRUE, right = TRUE)
     dat$classCode <- paste0("Class ", dat[[4]])
     dat2 <- split(dat, dat[[4]])
@@ -1547,6 +1448,8 @@ server <- function(input, output, session) {
     colnames(totalErrorsS)[4] <- "Total Class Error"
     overallErrorsS <- weighted.mean(totalErrorsS[[4]], totalErrorsS[[3]], na.rm = TRUE)
     cutoff <- as.numeric(input$pct)
+    if (is.na(cutoff))
+      return(NULL)
     if( overallErrorsS > cutoff ){
       return(paste0("<span style=\"color:red\">FLAG</span>", ": ", round(overallErrorsS, 2), "%"))
     }else{
@@ -1567,31 +1470,13 @@ server <- function(input, output, session) {
     if (input$zeroes == TRUE){
       dat <- read.csv(inFile2$datapath, header = input$header)
     }
-    dat$stdev <- dat[[2]] / 1.645 # derive standard deviations from moes
+    dat$stdev <- dat[[2]] / 1.645
     myclasses <- 5
-    # Half-Standard Deviation (+- 0.5, +- 1.5, etc.)
-    halfStDevCount <- c(-1 * rev(seq(1, myclasses, by = 2)),
-                        seq(1, myclasses, by = 2))
-    if((myclasses %% 2) == 1) {
-      halfStDevBreaks <- unlist(lapply(halfStDevCount,
-                                       function(i) (0.5 * i * sd(dat[[1]])) + mean(dat[[1]])))
-      halfStDevBreaks[[1]] <- ifelse(min(dat[[1]]) < halfStDevBreaks[[1]],
-                                     min(dat[[1]]), halfStDevBreaks[[1]])
-      halfStDevBreaks[[myclasses + 1]] <- ifelse(max(dat[[1]]) > halfStDevBreaks[[myclasses + 1]],
-                                                 max(dat[[1]]), halfStDevBreaks[[myclasses + 1]])
-    } else {
-      halfStDevBreaks <- NA
-    }
-    newbreaks <- halfStDevBreaks
-    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, # [[4]]
-                         include.lowest = TRUE, right = TRUE)
-    dat$lowerBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[1:length(newbreaks) - 1]), # [[5]]
+    newbreaks <- stDevBreaks(dat[[1]], myclasses)
+    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, include.lowest = TRUE, right = TRUE)
+    dat$lowerBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[1:length(newbreaks) - 1]),
                           include.lowest = TRUE, right = TRUE)
-    dat$upperBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[2:length(newbreaks)]), # [[6]]
+    dat$upperBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[2:length(newbreaks)]),
                           include.lowest = TRUE, right = TRUE)
     dat$classCode <- paste0("Class ", dat[[4]])
     dat2 <- split(dat, dat[[4]])
@@ -1607,6 +1492,8 @@ server <- function(input, output, session) {
     totalErrorsS[4] <- totalErrorsS[1] + totalErrorsS[2]
     colnames(totalErrorsS)[4] <- "Total Class Error"
     cutoff <- as.numeric(input$pct)
+    if (is.na(cutoff))
+      return(NULL)
     criteria <- ifelse(totalErrorsS[4] > cutoff * 2, 1, 0)
     if(1 %in% criteria){
       return(paste("<span style=\"color:red\">FLAG</span>"))
@@ -1627,20 +1514,13 @@ server <- function(input, output, session) {
     if (input$zeroes == TRUE){
       dat <- read.csv(inFile2$datapath, header = input$header)
     }
-    dat$stdev <- dat[[2]] / 1.645 # derive standard deviations from moes
+    dat$stdev <- dat[[2]] / 1.645
     myclasses <- 6
-    newbreaks <- seq(from = min(dat[[1]]),
-                     to = max(dat[[1]]),
-                     by = (max(dat[[1]]) - min(dat[[1]])) / myclasses)
-    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, # [[4]]
-                         include.lowest = TRUE, right = TRUE)
-    dat$lowerBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[1:length(newbreaks) - 1]), # [[5]]
+    newbreaks <- eqIntervalBreaks(dat[[1]], myclasses)
+    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, include.lowest = TRUE, right = TRUE)
+    dat$lowerBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[1:length(newbreaks) - 1]),
                           include.lowest = TRUE, right = TRUE)
-    dat$upperBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[2:length(newbreaks)]), # [[6]]
+    dat$upperBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[2:length(newbreaks)]),
                           include.lowest = TRUE, right = TRUE)
     dat$classCode <- paste0("Class ", dat[[4]])
     dat2 <- split(dat, dat[[4]])
@@ -1657,6 +1537,8 @@ server <- function(input, output, session) {
     colnames(totalErrorsE)[4] <- "Total Class Error"
     overallErrorsE <- weighted.mean(totalErrorsE[[4]], totalErrorsE[[3]], na.rm = TRUE)
     cutoff <- as.numeric(input$pct)
+    if (is.na(cutoff))
+      return(NULL)
     if( overallErrorsE > cutoff ){
       return(paste0("<span style=\"color:red\">FLAG</span>", ": ", round(overallErrorsE, 2), "%"))
     }else{
@@ -1674,20 +1556,13 @@ server <- function(input, output, session) {
     if (input$zeroes == TRUE){
       dat <- read.csv(inFile2$datapath, header = input$header)
     }
-    dat$stdev <- dat[[2]] / 1.645 # derive standard deviations from moes
+    dat$stdev <- dat[[2]] / 1.645
     myclasses <- 6
-    newbreaks <- seq(from = min(dat[[1]]),
-                     to = max(dat[[1]]),
-                     by = (max(dat[[1]]) - min(dat[[1]])) / myclasses)
-    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, # [[4]]
-                         include.lowest = TRUE, right = TRUE)
-    dat$lowerBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[1:length(newbreaks) - 1]), # [[5]]
+    newbreaks <- eqIntervalBreaks(dat[[1]], myclasses)
+    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, include.lowest = TRUE, right = TRUE)
+    dat$lowerBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[1:length(newbreaks) - 1]),
                           include.lowest = TRUE, right = TRUE)
-    dat$upperBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[2:length(newbreaks)]), # [[6]]
+    dat$upperBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[2:length(newbreaks)]),
                           include.lowest = TRUE, right = TRUE)
     dat$classCode <- paste0("Class ", dat[[4]])
     dat2 <- split(dat, dat[[4]])
@@ -1703,6 +1578,8 @@ server <- function(input, output, session) {
     totalErrorsE[4] <- totalErrorsE[1] + totalErrorsE[2]
     colnames(totalErrorsE)[4] <- "Total Class Error"
     cutoff <- as.numeric(input$pct)
+    if (is.na(cutoff))
+      return(NULL)
     criteria <- ifelse(totalErrorsE[4] > cutoff * 2, 1, 0)
     if(1 %in% criteria){
       return(paste("<span style=\"color:red\">FLAG</span>"))
@@ -1721,18 +1598,13 @@ server <- function(input, output, session) {
     if (input$zeroes == TRUE){
       dat <- read.csv(inFile2$datapath, header = input$header)
     }
-    dat$stdev <- dat[[2]] / 1.645 # derive standard deviations from moes
+    dat$stdev <- dat[[2]] / 1.645
     myclasses <- 6
     newbreaks <- getJenksBreaks(dat[[1]], myclasses + 1)
-    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, # [[4]]
-                         include.lowest = TRUE, right = TRUE)
-    dat$lowerBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[1:length(newbreaks) - 1]), # [[5]]
+    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, include.lowest = TRUE, right = TRUE)
+    dat$lowerBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[1:length(newbreaks) - 1]),
                           include.lowest = TRUE, right = TRUE)
-    dat$upperBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[2:length(newbreaks)]), # [[6]]
+    dat$upperBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[2:length(newbreaks)]),
                           include.lowest = TRUE, right = TRUE)
     dat$classCode <- paste0("Class ", dat[[4]])
     dat2 <- split(dat, dat[[4]])
@@ -1749,6 +1621,8 @@ server <- function(input, output, session) {
     colnames(totalErrorsJ)[4] <- "Total Class Error"
     overallErrorsJ <- weighted.mean(totalErrorsJ[[4]], totalErrorsJ[[3]], na.rm = TRUE)
     cutoff <- as.numeric(input$pct)
+    if (is.na(cutoff))
+      return(NULL)
     if( overallErrorsJ > cutoff ){
       return(paste0("<span style=\"color:red\">FLAG</span>", ": ", round(overallErrorsJ, 2), "%"))
     }else{
@@ -1766,18 +1640,13 @@ server <- function(input, output, session) {
     if (input$zeroes == TRUE){
       dat <- read.csv(inFile2$datapath, header = input$header)
     }
-    dat$stdev <- dat[[2]] / 1.645 # derive standard deviations from moes
+    dat$stdev <- dat[[2]] / 1.645
     myclasses <- 6
     newbreaks <- getJenksBreaks(dat[[1]], myclasses + 1)
-    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, # [[4]]
-                         include.lowest = TRUE, right = TRUE)
-    dat$lowerBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[1:length(newbreaks) - 1]), # [[5]]
+    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, include.lowest = TRUE, right = TRUE)
+    dat$lowerBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[1:length(newbreaks) - 1]),
                           include.lowest = TRUE, right = TRUE)
-    dat$upperBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[2:length(newbreaks)]), # [[6]]
+    dat$upperBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[2:length(newbreaks)]),
                           include.lowest = TRUE, right = TRUE)
     dat$classCode <- paste0("Class ", dat[[4]])
     dat2 <- split(dat, dat[[4]])
@@ -1793,6 +1662,8 @@ server <- function(input, output, session) {
     totalErrorsJ[4] <- totalErrorsJ[1] + totalErrorsJ[2]
     colnames(totalErrorsJ)[4] <- "Total Class Error"
     cutoff <- as.numeric(input$pct)
+    if (is.na(cutoff))
+      return(NULL)
     criteria <- ifelse(totalErrorsJ[4] > cutoff * 2, 1, 0)
     if(1 %in% criteria){
       return(paste("<span style=\"color:red\">FLAG</span>"))
@@ -1811,20 +1682,15 @@ server <- function(input, output, session) {
     if (input$zeroes == TRUE){
       dat <- read.csv(inFile2$datapath, header = input$header)
     }
-    dat$stdev <- dat[[2]] / 1.645 # derive standard deviations from moes
+    dat$stdev <- dat[[2]] / 1.645
     myclasses <- 6
     newbreaks <- quantile(dat[[1]], probs = seq(0, 1, length = myclasses + 1))
     if (length(unique(newbreaks)) != length(newbreaks))
       return("ERROR: Breaks not unique")
-    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, # [[4]]
-                         include.lowest = TRUE, right = TRUE)
-    dat$lowerBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[1:length(newbreaks) - 1]), # [[5]]
+    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, include.lowest = TRUE, right = TRUE)
+    dat$lowerBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[1:length(newbreaks) - 1]),
                           include.lowest = TRUE, right = TRUE)
-    dat$upperBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[2:length(newbreaks)]), # [[6]]
+    dat$upperBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[2:length(newbreaks)]),
                           include.lowest = TRUE, right = TRUE)
     dat$classCode <- paste0("Class ", dat[[4]])
     dat2 <- split(dat, dat[[4]])
@@ -1841,6 +1707,8 @@ server <- function(input, output, session) {
     colnames(totalErrorsQ)[4] <- "Total Class Error"
     overallErrorsQ <- weighted.mean(totalErrorsQ[[4]], totalErrorsQ[[3]], na.rm = TRUE)
     cutoff <- as.numeric(input$pct)
+    if (is.na(cutoff))
+      return(NULL)
     if( overallErrorsQ > cutoff ){
       return(paste0("<span style=\"color:red\">FLAG</span>", ": ", round(overallErrorsQ, 2), "%"))
     }else{
@@ -1858,20 +1726,15 @@ server <- function(input, output, session) {
     if (input$zeroes == TRUE){
       dat <- read.csv(inFile2$datapath, header = input$header)
     }
-    dat$stdev <- dat[[2]] / 1.645 # derive standard deviations from moes
+    dat$stdev <- dat[[2]] / 1.645
     myclasses <- 6
     newbreaks <- quantile(dat[[1]], probs = seq(0, 1, length = myclasses + 1))
     if (length(unique(newbreaks)) != length(newbreaks))
       return("ERROR: Breaks not unique")
-    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, # [[4]]
-                         include.lowest = TRUE, right = TRUE)
-    dat$lowerBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[1:length(newbreaks) - 1]), # [[5]]
+    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, include.lowest = TRUE, right = TRUE)
+    dat$lowerBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[1:length(newbreaks) - 1]),
                           include.lowest = TRUE, right = TRUE)
-    dat$upperBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[2:length(newbreaks)]), # [[6]]
+    dat$upperBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[2:length(newbreaks)]),
                           include.lowest = TRUE, right = TRUE)
     dat$classCode <- paste0("Class ", dat[[4]])
     dat2 <- split(dat, dat[[4]])
@@ -1887,6 +1750,8 @@ server <- function(input, output, session) {
     totalErrorsQ[4] <- totalErrorsQ[1] + totalErrorsQ[2]
     colnames(totalErrorsQ)[4] <- "Total Class Error"
     cutoff <- as.numeric(input$pct)
+    if (is.na(cutoff))
+      return(NULL)
     criteria <- ifelse(totalErrorsQ[4] > cutoff * 2, 1, 0)
     if(1 %in% criteria){
       return(paste("<span style=\"color:red\">FLAG</span>"))
@@ -1898,6 +1763,9 @@ server <- function(input, output, session) {
     inFile2 <- input$file1
     if (is.null(inFile2))
       return(NULL)
+    cutoff <- as.numeric(input$pct)
+    if (is.na(cutoff))
+      return(NULL)
     if((6 %% 2) == 0){
       return("NA")
     }
@@ -1906,6 +1774,9 @@ server <- function(input, output, session) {
   output$verdictST6 <- renderText({
     inFile2 <- input$file1
     if (is.null(inFile2))
+      return(NULL)
+    cutoff <- as.numeric(input$pct)
+    if (is.na(cutoff))
       return(NULL)
     if((6 %% 2) == 0){
       return("NA")
@@ -1924,20 +1795,13 @@ server <- function(input, output, session) {
     if (input$zeroes == TRUE){
       dat <- read.csv(inFile2$datapath, header = input$header)
     }
-    dat$stdev <- dat[[2]] / 1.645 # derive standard deviations from moes
+    dat$stdev <- dat[[2]] / 1.645
     myclasses <- 7
-    newbreaks <- seq(from = min(dat[[1]]),
-                     to = max(dat[[1]]),
-                     by = (max(dat[[1]]) - min(dat[[1]])) / myclasses)
-    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, # [[4]]
-                         include.lowest = TRUE, right = TRUE)
-    dat$lowerBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[1:length(newbreaks) - 1]), # [[5]]
+    newbreaks <- eqIntervalBreaks(dat[[1]], myclasses)
+    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, include.lowest = TRUE, right = TRUE)
+    dat$lowerBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[1:length(newbreaks) - 1]),
                           include.lowest = TRUE, right = TRUE)
-    dat$upperBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[2:length(newbreaks)]), # [[6]]
+    dat$upperBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[2:length(newbreaks)]),
                           include.lowest = TRUE, right = TRUE)
     dat$classCode <- paste0("Class ", dat[[4]])
     dat2 <- split(dat, dat[[4]])
@@ -1954,6 +1818,8 @@ server <- function(input, output, session) {
     colnames(totalErrorsE)[4] <- "Total Class Error"
     overallErrorsE <- weighted.mean(totalErrorsE[[4]], totalErrorsE[[3]], na.rm = TRUE)
     cutoff <- as.numeric(input$pct)
+    if (is.na(cutoff))
+      return(NULL)
     if( overallErrorsE > cutoff ){
       return(paste0("<span style=\"color:red\">FLAG</span>", ": ", round(overallErrorsE, 2), "%"))
     }else{
@@ -1971,20 +1837,13 @@ server <- function(input, output, session) {
     if (input$zeroes == TRUE){
       dat <- read.csv(inFile2$datapath, header = input$header)
     }
-    dat$stdev <- dat[[2]] / 1.645 # derive standard deviations from moes
+    dat$stdev <- dat[[2]] / 1.645
     myclasses <- 7
-    newbreaks <- seq(from = min(dat[[1]]),
-                     to = max(dat[[1]]),
-                     by = (max(dat[[1]]) - min(dat[[1]])) / myclasses)
-    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, # [[4]]
-                         include.lowest = TRUE, right = TRUE)
-    dat$lowerBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[1:length(newbreaks) - 1]), # [[5]]
+    newbreaks <- eqIntervalBreaks(dat[[1]], myclasses)
+    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, include.lowest = TRUE, right = TRUE)
+    dat$lowerBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[1:length(newbreaks) - 1]),
                           include.lowest = TRUE, right = TRUE)
-    dat$upperBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[2:length(newbreaks)]), # [[6]]
+    dat$upperBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[2:length(newbreaks)]),
                           include.lowest = TRUE, right = TRUE)
     dat$classCode <- paste0("Class ", dat[[4]])
     dat2 <- split(dat, dat[[4]])
@@ -2000,6 +1859,8 @@ server <- function(input, output, session) {
     totalErrorsE[4] <- totalErrorsE[1] + totalErrorsE[2]
     colnames(totalErrorsE)[4] <- "Total Class Error"
     cutoff <- as.numeric(input$pct)
+    if (is.na(cutoff))
+      return(NULL)
     criteria <- ifelse(totalErrorsE[4] > cutoff * 2, 1, 0)
     if(1 %in% criteria){
       return(paste("<span style=\"color:red\">FLAG</span>"))
@@ -2018,18 +1879,13 @@ server <- function(input, output, session) {
     if (input$zeroes == TRUE){
       dat <- read.csv(inFile2$datapath, header = input$header)
     }
-    dat$stdev <- dat[[2]] / 1.645 # derive standard deviations from moes
+    dat$stdev <- dat[[2]] / 1.645
     myclasses <- 7
     newbreaks <- getJenksBreaks(dat[[1]], myclasses + 1)
-    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, # [[4]]
-                         include.lowest = TRUE, right = TRUE)
-    dat$lowerBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[1:length(newbreaks) - 1]), # [[5]]
+    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, include.lowest = TRUE, right = TRUE)
+    dat$lowerBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[1:length(newbreaks) - 1]),
                           include.lowest = TRUE, right = TRUE)
-    dat$upperBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[2:length(newbreaks)]), # [[6]]
+    dat$upperBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[2:length(newbreaks)]),
                           include.lowest = TRUE, right = TRUE)
     dat$classCode <- paste0("Class ", dat[[4]])
     dat2 <- split(dat, dat[[4]])
@@ -2046,6 +1902,8 @@ server <- function(input, output, session) {
     colnames(totalErrorsJ)[4] <- "Total Class Error"
     overallErrorsJ <- weighted.mean(totalErrorsJ[[4]], totalErrorsJ[[3]], na.rm = TRUE)
     cutoff <- as.numeric(input$pct)
+    if (is.na(cutoff))
+      return(NULL)
     if( overallErrorsJ > cutoff ){
       return(paste0("<span style=\"color:red\">FLAG</span>", ": ", round(overallErrorsJ, 2), "%"))
     }else{
@@ -2063,18 +1921,13 @@ server <- function(input, output, session) {
     if (input$zeroes == TRUE){
       dat <- read.csv(inFile2$datapath, header = input$header)
     }
-    dat$stdev <- dat[[2]] / 1.645 # derive standard deviations from moes
+    dat$stdev <- dat[[2]] / 1.645
     myclasses <- 7
     newbreaks <- getJenksBreaks(dat[[1]], myclasses + 1)
-    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, # [[4]]
-                         include.lowest = TRUE, right = TRUE)
-    dat$lowerBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[1:length(newbreaks) - 1]), # [[5]]
+    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, include.lowest = TRUE, right = TRUE)
+    dat$lowerBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[1:length(newbreaks) - 1]),
                           include.lowest = TRUE, right = TRUE)
-    dat$upperBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[2:length(newbreaks)]), # [[6]]
+    dat$upperBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[2:length(newbreaks)]),
                           include.lowest = TRUE, right = TRUE)
     dat$classCode <- paste0("Class ", dat[[4]])
     dat2 <- split(dat, dat[[4]])
@@ -2090,6 +1943,8 @@ server <- function(input, output, session) {
     totalErrorsJ[4] <- totalErrorsJ[1] + totalErrorsJ[2]
     colnames(totalErrorsJ)[4] <- "Total Class Error"
     cutoff <- as.numeric(input$pct)
+    if (is.na(cutoff))
+      return(NULL)
     criteria <- ifelse(totalErrorsJ[4] > cutoff * 2, 1, 0)
     if(1 %in% criteria){
       return(paste("<span style=\"color:red\">FLAG</span>"))
@@ -2108,20 +1963,15 @@ server <- function(input, output, session) {
     if (input$zeroes == TRUE){
       dat <- read.csv(inFile2$datapath, header = input$header)
     }
-    dat$stdev <- dat[[2]] / 1.645 # derive standard deviations from moes
+    dat$stdev <- dat[[2]] / 1.645
     myclasses <- 7
     newbreaks <- quantile(dat[[1]], probs = seq(0, 1, length = myclasses + 1))
     if (length(unique(newbreaks)) != length(newbreaks))
       return("ERROR: Breaks not unique")
-    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, # [[4]]
-                         include.lowest = TRUE, right = TRUE)
-    dat$lowerBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[1:length(newbreaks) - 1]), # [[5]]
+    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, include.lowest = TRUE, right = TRUE)
+    dat$lowerBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[1:length(newbreaks) - 1]),
                           include.lowest = TRUE, right = TRUE)
-    dat$upperBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[2:length(newbreaks)]), # [[6]]
+    dat$upperBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[2:length(newbreaks)]),
                           include.lowest = TRUE, right = TRUE)
     dat$classCode <- paste0("Class ", dat[[4]])
     dat2 <- split(dat, dat[[4]])
@@ -2138,6 +1988,8 @@ server <- function(input, output, session) {
     colnames(totalErrorsQ)[4] <- "Total Class Error"
     overallErrorsQ <- weighted.mean(totalErrorsQ[[4]], totalErrorsQ[[3]], na.rm = TRUE)
     cutoff <- as.numeric(input$pct)
+    if (is.na(cutoff))
+      return(NULL)
     if( overallErrorsQ > cutoff ){
       return(paste0("<span style=\"color:red\">FLAG</span>", ": ", round(overallErrorsQ, 2), "%"))
     }else{
@@ -2155,20 +2007,15 @@ server <- function(input, output, session) {
     if (input$zeroes == TRUE){
       dat <- read.csv(inFile2$datapath, header = input$header)
     }
-    dat$stdev <- dat[[2]] / 1.645 # derive standard deviations from moes
+    dat$stdev <- dat[[2]] / 1.645
     myclasses <- 7
     newbreaks <- quantile(dat[[1]], probs = seq(0, 1, length = myclasses + 1))
     if (length(unique(newbreaks)) != length(newbreaks))
       return("ERROR: Breaks not unique")
-    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, # [[4]]
-                         include.lowest = TRUE, right = TRUE)
-    dat$lowerBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[1:length(newbreaks) - 1]), # [[5]]
+    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, include.lowest = TRUE, right = TRUE)
+    dat$lowerBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[1:length(newbreaks) - 1]),
                           include.lowest = TRUE, right = TRUE)
-    dat$upperBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[2:length(newbreaks)]), # [[6]]
+    dat$upperBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[2:length(newbreaks)]),
                           include.lowest = TRUE, right = TRUE)
     dat$classCode <- paste0("Class ", dat[[4]])
     dat2 <- split(dat, dat[[4]])
@@ -2184,6 +2031,8 @@ server <- function(input, output, session) {
     totalErrorsQ[4] <- totalErrorsQ[1] + totalErrorsQ[2]
     colnames(totalErrorsQ)[4] <- "Total Class Error"
     cutoff <- as.numeric(input$pct)
+    if (is.na(cutoff))
+      return(NULL)
     criteria <- ifelse(totalErrorsQ[4] > cutoff * 2, 1, 0)
     if(1 %in% criteria){
       return(paste("<span style=\"color:red\">FLAG</span>"))
@@ -2204,31 +2053,13 @@ server <- function(input, output, session) {
     if (input$zeroes == TRUE){
       dat <- read.csv(inFile2$datapath, header = input$header)
     }
-    dat$stdev <- dat[[2]] / 1.645 # derive standard deviations from moes
+    dat$stdev <- dat[[2]] / 1.645
     myclasses <- 7
-    # Half-Standard Deviation (+- 0.5, +- 1.5, etc.)
-    halfStDevCount <- c(-1 * rev(seq(1, myclasses, by = 2)),
-                        seq(1, myclasses, by = 2))
-    if((myclasses %% 2) == 1) {
-      halfStDevBreaks <- unlist(lapply(halfStDevCount,
-                                       function(i) (0.5 * i * sd(dat[[1]])) + mean(dat[[1]])))
-      halfStDevBreaks[[1]] <- ifelse(min(dat[[1]]) < halfStDevBreaks[[1]],
-                                     min(dat[[1]]), halfStDevBreaks[[1]])
-      halfStDevBreaks[[myclasses + 1]] <- ifelse(max(dat[[1]]) > halfStDevBreaks[[myclasses + 1]],
-                                                 max(dat[[1]]), halfStDevBreaks[[myclasses + 1]])
-    } else {
-      halfStDevBreaks <- NA
-    }
-    newbreaks <- halfStDevBreaks
-    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, # [[4]]
-                         include.lowest = TRUE, right = TRUE)
-    dat$lowerBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[1:length(newbreaks) - 1]), # [[5]]
+    newbreaks <- stDevBreaks(dat[[1]], myclasses)
+    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, include.lowest = TRUE, right = TRUE)
+    dat$lowerBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[1:length(newbreaks) - 1]),
                           include.lowest = TRUE, right = TRUE)
-    dat$upperBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[2:length(newbreaks)]), # [[6]]
+    dat$upperBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[2:length(newbreaks)]),
                           include.lowest = TRUE, right = TRUE)
     dat$classCode <- paste0("Class ", dat[[4]])
     dat2 <- split(dat, dat[[4]])
@@ -2245,6 +2076,8 @@ server <- function(input, output, session) {
     colnames(totalErrorsS)[4] <- "Total Class Error"
     overallErrorsS <- weighted.mean(totalErrorsS[[4]], totalErrorsS[[3]], na.rm = TRUE)
     cutoff <- as.numeric(input$pct)
+    if (is.na(cutoff))
+      return(NULL)
     if( overallErrorsS > cutoff ){
       return(paste0("<span style=\"color:red\">FLAG</span>", ": ", round(overallErrorsS, 2), "%"))
     }else{
@@ -2265,31 +2098,13 @@ server <- function(input, output, session) {
     if (input$zeroes == TRUE){
       dat <- read.csv(inFile2$datapath, header = input$header)
     }
-    dat$stdev <- dat[[2]] / 1.645 # derive standard deviations from moes
+    dat$stdev <- dat[[2]] / 1.645
     myclasses <- 7
-    # Half-Standard Deviation (+- 0.5, +- 1.5, etc.)
-    halfStDevCount <- c(-1 * rev(seq(1, myclasses, by = 2)),
-                        seq(1, myclasses, by = 2))
-    if((myclasses %% 2) == 1) {
-      halfStDevBreaks <- unlist(lapply(halfStDevCount,
-                                       function(i) (0.5 * i * sd(dat[[1]])) + mean(dat[[1]])))
-      halfStDevBreaks[[1]] <- ifelse(min(dat[[1]]) < halfStDevBreaks[[1]],
-                                     min(dat[[1]]), halfStDevBreaks[[1]])
-      halfStDevBreaks[[myclasses + 1]] <- ifelse(max(dat[[1]]) > halfStDevBreaks[[myclasses + 1]],
-                                                 max(dat[[1]]), halfStDevBreaks[[myclasses + 1]])
-    } else {
-      halfStDevBreaks <- NA
-    }
-    newbreaks <- halfStDevBreaks
-    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, # [[4]]
-                         include.lowest = TRUE, right = TRUE)
-    dat$lowerBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[1:length(newbreaks) - 1]), # [[5]]
+    newbreaks <- stDevBreaks(dat[[1]], myclasses)
+    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, include.lowest = TRUE, right = TRUE)
+    dat$lowerBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[1:length(newbreaks) - 1]),
                           include.lowest = TRUE, right = TRUE)
-    dat$upperBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[2:length(newbreaks)]), # [[6]]
+    dat$upperBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[2:length(newbreaks)]),
                           include.lowest = TRUE, right = TRUE)
     dat$classCode <- paste0("Class ", dat[[4]])
     dat2 <- split(dat, dat[[4]])
@@ -2305,6 +2120,8 @@ server <- function(input, output, session) {
     totalErrorsS[4] <- totalErrorsS[1] + totalErrorsS[2]
     colnames(totalErrorsS)[4] <- "Total Class Error"
     cutoff <- as.numeric(input$pct)
+    if (is.na(cutoff))
+      return(NULL)
     criteria <- ifelse(totalErrorsS[4] > cutoff * 2, 1, 0)
     if(1 %in% criteria){
       return(paste("<span style=\"color:red\">FLAG</span>"))
@@ -2345,7 +2162,7 @@ server <- function(input, output, session) {
     if (input$zeroes == TRUE){
       dat <- read.csv(inFile2$datapath, header = input$header)
     }
-    dat$stdev <- dat[[2]] / 1.645 # derive standard deviations from moes
+    dat$stdev <- dat[[2]] / 1.645
     myclasses <- as.numeric(input$county)
     newbreaks <- seq(from = min(dat[[1]]),
                      to = max(dat[[1]]),
@@ -2367,20 +2184,13 @@ server <- function(input, output, session) {
     if (input$zeroes == TRUE){
       dat <- read.csv(inFile2$datapath, header = input$header)
     }
-    dat$stdev <- dat[[2]] / 1.645 # derive standard deviations from moes
+    dat$stdev <- dat[[2]] / 1.645
     myclasses <- as.numeric(input$county)
-    newbreaks <- seq(from = min(dat[[1]]),
-                     to = max(dat[[1]]),
-                     by = (max(dat[[1]]) - min(dat[[1]])) / myclasses)
-    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, # [[4]]
-                         include.lowest = TRUE, right = TRUE)
-    dat$lowerBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[1:length(newbreaks) - 1]), # [[5]]
+    newbreaks <- eqIntervalBreaks(dat[[1]], myclasses)
+    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, include.lowest = TRUE, right = TRUE)
+    dat$lowerBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[1:length(newbreaks) - 1]),
                           include.lowest = TRUE, right = TRUE)
-    dat$upperBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[2:length(newbreaks)]), # [[6]]
+    dat$upperBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[2:length(newbreaks)]),
                           include.lowest = TRUE, right = TRUE)
     dat$classCode <- paste0("Class ", dat[[4]])
     dat2 <- split(dat, dat[[4]])
@@ -2397,6 +2207,8 @@ server <- function(input, output, session) {
     colnames(totalErrorsE)[4] <- "Total Class Error"
     overallErrorsE <- weighted.mean(totalErrorsE[[4]], totalErrorsE[[3]], na.rm = TRUE)
     cutoff <- as.numeric(input$pct)
+    if (is.na(cutoff))
+      return(NULL)
     if( overallErrorsE > cutoff ){
       return(paste("<span style=\"color:red\">FLAG: High Overall Error</span>"))
     }else{
@@ -2414,20 +2226,13 @@ server <- function(input, output, session) {
     if (input$zeroes == TRUE){
       dat <- read.csv(inFile2$datapath, header = input$header)
     }
-    dat$stdev <- dat[[2]] / 1.645 # derive standard deviations from moes
+    dat$stdev <- dat[[2]] / 1.645
     myclasses <- as.numeric(input$county)
-    newbreaks <- seq(from = min(dat[[1]]),
-                     to = max(dat[[1]]),
-                     by = (max(dat[[1]]) - min(dat[[1]])) / myclasses)
-    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, # [[4]]
-                         include.lowest = TRUE, right = TRUE)
-    dat$lowerBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[1:length(newbreaks) - 1]), # [[5]]
+    newbreaks <- eqIntervalBreaks(dat[[1]], myclasses)
+    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, include.lowest = TRUE, right = TRUE)
+    dat$lowerBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[1:length(newbreaks) - 1]),
                           include.lowest = TRUE, right = TRUE)
-    dat$upperBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[2:length(newbreaks)]), # [[6]]
+    dat$upperBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[2:length(newbreaks)]),
                           include.lowest = TRUE, right = TRUE)
     dat$classCode <- paste0("Class ", dat[[4]])
     dat2 <- split(dat, dat[[4]])
@@ -2458,20 +2263,13 @@ server <- function(input, output, session) {
     if (input$zeroes == TRUE){
       dat <- read.csv(inFile2$datapath, header = input$header)
     }
-    dat$stdev <- dat[[2]] / 1.645 # derive standard deviations from moes
+    dat$stdev <- dat[[2]] / 1.645
     myclasses <- as.numeric(input$county)
-    newbreaks <- seq(from = min(dat[[1]]),
-                     to = max(dat[[1]]),
-                     by = (max(dat[[1]]) - min(dat[[1]])) / myclasses)
-    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, # [[4]]
-                         include.lowest = TRUE, right = TRUE)
-    dat$lowerBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[1:length(newbreaks) - 1]), # [[5]]
+    newbreaks <- eqIntervalBreaks(dat[[1]], myclasses)
+    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, include.lowest = TRUE, right = TRUE)
+    dat$lowerBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[1:length(newbreaks) - 1]),
                           include.lowest = TRUE, right = TRUE)
-    dat$upperBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[2:length(newbreaks)]), # [[6]]
+    dat$upperBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[2:length(newbreaks)]),
                           include.lowest = TRUE, right = TRUE)
     dat$classCode <- paste0("Class ", dat[[4]])
     dat2 <- split(dat, dat[[4]])
@@ -2487,6 +2285,8 @@ server <- function(input, output, session) {
     totalErrorsE[4] <- totalErrorsE[1] + totalErrorsE[2]
     colnames(totalErrorsE)[4] <- "Total Class Error"
     cutoff <- as.numeric(input$pct)
+    if (is.na(cutoff))
+      return(NULL)
     criteria <- ifelse(totalErrorsE[4] > cutoff * 2, 1, 0)
     if(1 %in% criteria){
       return(paste("<span style=\"color:red\">FLAG: High Error in One or More Classes</span>"))
@@ -2505,20 +2305,13 @@ server <- function(input, output, session) {
     if (input$zeroes == TRUE){
       dat <- read.csv(inFile2$datapath, header = input$header)
     }
-    dat$stdev <- dat[[2]] / 1.645 # derive standard deviations from moes
+    dat$stdev <- dat[[2]] / 1.645
     myclasses <- as.numeric(input$county)
-    newbreaks <- seq(from = min(dat[[1]]),
-                     to = max(dat[[1]]),
-                     by = (max(dat[[1]]) - min(dat[[1]])) / myclasses)
-    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, # [[4]]
-                         include.lowest = TRUE, right = TRUE)
-    dat$lowerBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[1:length(newbreaks) - 1]), # [[5]]
+    newbreaks <- eqIntervalBreaks(dat[[1]], myclasses)
+    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, include.lowest = TRUE, right = TRUE)
+    dat$lowerBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[1:length(newbreaks) - 1]),
                           include.lowest = TRUE, right = TRUE)
-    dat$upperBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[2:length(newbreaks)]), # [[6]]
+    dat$upperBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[2:length(newbreaks)]),
                           include.lowest = TRUE, right = TRUE)
     dat$classCode <- paste0("Class ", dat[[4]])
     dat2 <- split(dat, dat[[4]])
@@ -2550,7 +2343,7 @@ server <- function(input, output, session) {
     if (input$zeroes == TRUE){
       dat <- read.csv(inFile2$datapath, header = input$header)
     }
-    dat$stdev <- dat[[2]] / 1.645 # derive standard deviations from moes
+    dat$stdev <- dat[[2]] / 1.645
     myclasses <- as.numeric(input$county)
     newbreaks <- getJenksBreaks(dat[[1]], myclasses + 1)
     newbreaks <- newbreaks[1:(length(newbreaks)-1)]
@@ -2570,18 +2363,13 @@ server <- function(input, output, session) {
     if (input$zeroes == TRUE){
       dat <- read.csv(inFile2$datapath, header = input$header)
     }
-    dat$stdev <- dat[[2]] / 1.645 # derive standard deviations from moes
+    dat$stdev <- dat[[2]] / 1.645
     myclasses <- as.numeric(input$county)
     newbreaks <- getJenksBreaks(dat[[1]], myclasses + 1)
-    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, # [[4]]
-                         include.lowest = TRUE, right = TRUE)
-    dat$lowerBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[1:length(newbreaks) - 1]), # [[5]]
+    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, include.lowest = TRUE, right = TRUE)
+    dat$lowerBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[1:length(newbreaks) - 1]),
                           include.lowest = TRUE, right = TRUE)
-    dat$upperBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[2:length(newbreaks)]), # [[6]]
+    dat$upperBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[2:length(newbreaks)]),
                           include.lowest = TRUE, right = TRUE)
     dat$classCode <- paste0("Class ", dat[[4]])
     dat2 <- split(dat, dat[[4]])
@@ -2598,6 +2386,8 @@ server <- function(input, output, session) {
     colnames(totalErrorsJ)[4] <- "Total Class Error"
     overallErrorsJ <- weighted.mean(totalErrorsJ[[4]], totalErrorsJ[[3]], na.rm = TRUE)
     cutoff <- as.numeric(input$pct)
+    if (is.na(cutoff))
+      return(NULL)
     if( overallErrorsJ > cutoff ){
       return(paste("<span style=\"color:red\">FLAG: High Overall Error</span>"))
     }else{
@@ -2615,18 +2405,13 @@ server <- function(input, output, session) {
     if (input$zeroes == TRUE){
       dat <- read.csv(inFile2$datapath, header = input$header)
     }
-    dat$stdev <- dat[[2]] / 1.645 # derive standard deviations from moes
+    dat$stdev <- dat[[2]] / 1.645
     myclasses <- as.numeric(input$county)
     newbreaks <- getJenksBreaks(dat[[1]], myclasses + 1)
-    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, # [[4]]
-                         include.lowest = TRUE, right = TRUE)
-    dat$lowerBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[1:length(newbreaks) - 1]), # [[5]]
+    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, include.lowest = TRUE, right = TRUE)
+    dat$lowerBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[1:length(newbreaks) - 1]),
                           include.lowest = TRUE, right = TRUE)
-    dat$upperBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[2:length(newbreaks)]), # [[6]]
+    dat$upperBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[2:length(newbreaks)]),
                           include.lowest = TRUE, right = TRUE)
     dat$classCode <- paste0("Class ", dat[[4]])
     dat2 <- split(dat, dat[[4]])
@@ -2657,18 +2442,13 @@ server <- function(input, output, session) {
     if (input$zeroes == TRUE){
       dat <- read.csv(inFile2$datapath, header = input$header)
     }
-    dat$stdev <- dat[[2]] / 1.645 # derive standard deviations from moes
+    dat$stdev <- dat[[2]] / 1.645
     myclasses <- as.numeric(input$county)
     newbreaks <- getJenksBreaks(dat[[1]], myclasses + 1)
-    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, # [[4]]
-                         include.lowest = TRUE, right = TRUE)
-    dat$lowerBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[1:length(newbreaks) - 1]), # [[5]]
+    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, include.lowest = TRUE, right = TRUE)
+    dat$lowerBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[1:length(newbreaks) - 1]),
                           include.lowest = TRUE, right = TRUE)
-    dat$upperBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[2:length(newbreaks)]), # [[6]]
+    dat$upperBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[2:length(newbreaks)]),
                           include.lowest = TRUE, right = TRUE)
     dat$classCode <- paste0("Class ", dat[[4]])
     dat2 <- split(dat, dat[[4]])
@@ -2684,6 +2464,8 @@ server <- function(input, output, session) {
     totalErrorsJ[4] <- totalErrorsJ[1] + totalErrorsJ[2]
     colnames(totalErrorsJ)[4] <- "Total Class Error"
     cutoff <- as.numeric(input$pct)
+    if (is.na(cutoff))
+      return(NULL)
     criteria <- ifelse(totalErrorsJ[4] > cutoff * 2, 1, 0)
     if(1 %in% criteria){
       return(paste("<span style=\"color:red\">FLAG: High Error in One or More Classes</span>"))
@@ -2702,18 +2484,13 @@ server <- function(input, output, session) {
     if (input$zeroes == TRUE){
       dat <- read.csv(inFile2$datapath, header = input$header)
     }
-    dat$stdev <- dat[[2]] / 1.645 # derive standard deviations from moes
+    dat$stdev <- dat[[2]] / 1.645
     myclasses <- as.numeric(input$county)
     newbreaks <- getJenksBreaks(dat[[1]], myclasses + 1)
-    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, # [[4]]
-                         include.lowest = TRUE, right = TRUE)
-    dat$lowerBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[1:length(newbreaks) - 1]), # [[5]]
+    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, include.lowest = TRUE, right = TRUE)
+    dat$lowerBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[1:length(newbreaks) - 1]),
                           include.lowest = TRUE, right = TRUE)
-    dat$upperBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[2:length(newbreaks)]), # [[6]]
+    dat$upperBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[2:length(newbreaks)]),
                           include.lowest = TRUE, right = TRUE)
     dat$classCode <- paste0("Class ", dat[[4]])
     dat2 <- split(dat, dat[[4]])
@@ -2745,7 +2522,7 @@ server <- function(input, output, session) {
     if (input$zeroes == TRUE){
       dat <- read.csv(inFile2$datapath, header = input$header)
     }
-    dat$stdev <- dat[[2]] / 1.645 # derive standard deviations from moes
+    dat$stdev <- dat[[2]] / 1.645
     myclasses <- as.numeric(input$county)
     newbreaks <- quantile(dat[[1]], probs = seq(0, 1, length = myclasses + 1))
     if (length(unique(newbreaks)) != length(newbreaks))
@@ -2767,20 +2544,15 @@ server <- function(input, output, session) {
     if (input$zeroes == TRUE){
       dat <- read.csv(inFile2$datapath, header = input$header)
     }
-    dat$stdev <- dat[[2]] / 1.645 # derive standard deviations from moes
+    dat$stdev <- dat[[2]] / 1.645
     myclasses <- as.numeric(input$county)
     newbreaks <- quantile(dat[[1]], probs = seq(0, 1, length = myclasses + 1))
     if (length(unique(newbreaks)) != length(newbreaks))
       return(NULL)
-    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, # [[4]]
-                         include.lowest = TRUE, right = TRUE)
-    dat$lowerBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[1:length(newbreaks) - 1]), # [[5]]
+    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, include.lowest = TRUE, right = TRUE)
+    dat$lowerBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[1:length(newbreaks) - 1]),
                           include.lowest = TRUE, right = TRUE)
-    dat$upperBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[2:length(newbreaks)]), # [[6]]
+    dat$upperBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[2:length(newbreaks)]),
                           include.lowest = TRUE, right = TRUE)
     dat$classCode <- paste0("Class ", dat[[4]])
     dat2 <- split(dat, dat[[4]])
@@ -2797,6 +2569,8 @@ server <- function(input, output, session) {
     colnames(totalErrorsQ)[4] <- "Total Class Error"
     overallErrorsQ <- weighted.mean(totalErrorsQ[[4]], totalErrorsQ[[3]], na.rm = TRUE)
     cutoff <- as.numeric(input$pct)
+    if (is.na(cutoff))
+      return(NULL)
     if( overallErrorsQ > cutoff ){
       return(paste("<span style=\"color:red\">FLAG: High Overall Error</span>"))
     }else{
@@ -2814,20 +2588,15 @@ server <- function(input, output, session) {
     if (input$zeroes == TRUE){
       dat <- read.csv(inFile2$datapath, header = input$header)
     }
-    dat$stdev <- dat[[2]] / 1.645 # derive standard deviations from moes
+    dat$stdev <- dat[[2]] / 1.645
     myclasses <- as.numeric(input$county)
     newbreaks <- quantile(dat[[1]], probs = seq(0, 1, length = myclasses + 1))
     if (length(unique(newbreaks)) != length(newbreaks))
       return("Breaks are not unique")
-    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, # [[4]]
-                         include.lowest = TRUE, right = TRUE)
-    dat$lowerBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[1:length(newbreaks) - 1]), # [[5]]
+    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, include.lowest = TRUE, right = TRUE)
+    dat$lowerBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[1:length(newbreaks) - 1]),
                           include.lowest = TRUE, right = TRUE)
-    dat$upperBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[2:length(newbreaks)]), # [[6]]
+    dat$upperBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[2:length(newbreaks)]),
                           include.lowest = TRUE, right = TRUE)
     dat$classCode <- paste0("Class ", dat[[4]])
     dat2 <- split(dat, dat[[4]])
@@ -2858,20 +2627,15 @@ server <- function(input, output, session) {
     if (input$zeroes == TRUE){
       dat <- read.csv(inFile2$datapath, header = input$header)
     }
-    dat$stdev <- dat[[2]] / 1.645 # derive standard deviations from moes
+    dat$stdev <- dat[[2]] / 1.645
     myclasses <- as.numeric(input$county)
     newbreaks <- quantile(dat[[1]], probs = seq(0, 1, length = myclasses + 1))
     if (length(unique(newbreaks)) != length(newbreaks))
       return(NULL)
-    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, # [[4]]
-                         include.lowest = TRUE, right = TRUE)
-    dat$lowerBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[1:length(newbreaks) - 1]), # [[5]]
+    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, include.lowest = TRUE, right = TRUE)
+    dat$lowerBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[1:length(newbreaks) - 1]),
                           include.lowest = TRUE, right = TRUE)
-    dat$upperBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[2:length(newbreaks)]), # [[6]]
+    dat$upperBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[2:length(newbreaks)]),
                           include.lowest = TRUE, right = TRUE)
     dat$classCode <- paste0("Class ", dat[[4]])
     dat2 <- split(dat, dat[[4]])
@@ -2887,6 +2651,8 @@ server <- function(input, output, session) {
     totalErrorsQ[4] <- totalErrorsQ[1] + totalErrorsQ[2]
     colnames(totalErrorsQ)[4] <- "Total Class Error"
     cutoff <- as.numeric(input$pct)
+    if (is.na(cutoff))
+      return(NULL)
     criteria <- ifelse(totalErrorsQ[4] > cutoff * 2, 1, 0)
     if(1 %in% criteria){
       return(paste("<span style=\"color:red\">FLAG: High Error in One or More Classes</span>"))
@@ -2905,20 +2671,15 @@ server <- function(input, output, session) {
     if (input$zeroes == TRUE){
       dat <- read.csv(inFile2$datapath, header = input$header)
     }
-    dat$stdev <- dat[[2]] / 1.645 # derive standard deviations from moes
+    dat$stdev <- dat[[2]] / 1.645
     myclasses <- as.numeric(input$county)
     newbreaks <- quantile(dat[[1]], probs = seq(0, 1, length = myclasses + 1))
     if (length(unique(newbreaks)) != length(newbreaks))
       return("Breaks are not unique")
-    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, # [[4]]
-                         include.lowest = TRUE, right = TRUE)
-    dat$lowerBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[1:length(newbreaks) - 1]), # [[5]]
+    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, include.lowest = TRUE, right = TRUE)
+    dat$lowerBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[1:length(newbreaks) - 1]),
                           include.lowest = TRUE, right = TRUE)
-    dat$upperBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[2:length(newbreaks)]), # [[6]]
+    dat$upperBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[2:length(newbreaks)]),
                           include.lowest = TRUE, right = TRUE)
     dat$classCode <- paste0("Class ", dat[[4]])
     dat2 <- split(dat, dat[[4]])
@@ -2953,24 +2714,12 @@ server <- function(input, output, session) {
     if (input$zeroes == TRUE){
       dat <- read.csv(inFile2$datapath, header = input$header)
     }
-    dat$stdev <- dat[[2]] / 1.645 # derive standard deviations from moes
+    dat$stdev <- dat[[2]] / 1.645
     myclasses <- as.numeric(input$county)
-    # Half-Standard Deviation (+- 0.5, +- 1.5, etc.)
-    halfStDevCount <- c(-1 * rev(seq(1, myclasses, by = 2)),
-                        seq(1, myclasses, by = 2))
-    if((myclasses %% 2) == 1) {
-      halfStDevBreaks <- unlist(lapply(halfStDevCount,
-                                       function(i) (0.5 * i * sd(dat[[1]])) + mean(dat[[1]])))
-      halfStDevBreaks[[1]] <- ifelse(min(dat[[1]]) < halfStDevBreaks[[1]],
-                                     min(dat[[1]]), halfStDevBreaks[[1]])
-      halfStDevBreaks[[myclasses + 1]] <- ifelse(max(dat[[1]]) > halfStDevBreaks[[myclasses + 1]],
-                                                 max(dat[[1]]), halfStDevBreaks[[myclasses + 1]])
-    } else {
-      halfStDevBreaks <- NA
-    }
-    halfStDevBreaks <- halfStDevBreaks[1:(length(halfStDevBreaks)-1)]
-    halfStDevBreaks <- halfStDevBreaks[-1]
-    round(halfStDevBreaks, digits = 3)
+    newbreaks <- stDevBreaks(dat[[1]], myclasses)
+    newbreaks <- newbreaks[1:(length(newbreaks)-1)]
+    newbreaks <- newbreaks[-1]
+    round(newbreaks, digits = 3)
   })
   
   output$explainS <- renderText({"Overall Expected Classification Error"})
@@ -2988,31 +2737,13 @@ server <- function(input, output, session) {
     if (input$zeroes == TRUE){
       dat <- read.csv(inFile2$datapath, header = input$header)
     }
-    dat$stdev <- dat[[2]] / 1.645 # derive standard deviations from moes
+    dat$stdev <- dat[[2]] / 1.645
     myclasses <- as.numeric(input$county)
-    # Half-Standard Deviation (+- 0.5, +- 1.5, etc.)
-    halfStDevCount <- c(-1 * rev(seq(1, myclasses, by = 2)),
-                        seq(1, myclasses, by = 2))
-    if((myclasses %% 2) == 1) {
-      halfStDevBreaks <- unlist(lapply(halfStDevCount,
-                                       function(i) (0.5 * i * sd(dat[[1]])) + mean(dat[[1]])))
-      halfStDevBreaks[[1]] <- ifelse(min(dat[[1]]) < halfStDevBreaks[[1]],
-                                     min(dat[[1]]), halfStDevBreaks[[1]])
-      halfStDevBreaks[[myclasses + 1]] <- ifelse(max(dat[[1]]) > halfStDevBreaks[[myclasses + 1]],
-                                                 max(dat[[1]]), halfStDevBreaks[[myclasses + 1]])
-    } else {
-      halfStDevBreaks <- NA
-    }
-    newbreaks <- halfStDevBreaks
-    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, # [[4]]
-                         include.lowest = TRUE, right = TRUE)
-    dat$lowerBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[1:length(newbreaks) - 1]), # [[5]]
+    newbreaks <- stDevBreaks(dat[[1]], myclasses)
+    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, include.lowest = TRUE, right = TRUE)
+    dat$lowerBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[1:length(newbreaks) - 1]),
                           include.lowest = TRUE, right = TRUE)
-    dat$upperBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[2:length(newbreaks)]), # [[6]]
+    dat$upperBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[2:length(newbreaks)]),
                           include.lowest = TRUE, right = TRUE)
     dat$classCode <- paste0("Class ", dat[[4]])
     dat2 <- split(dat, dat[[4]])
@@ -3029,6 +2760,8 @@ server <- function(input, output, session) {
     colnames(totalErrorsS)[4] <- "Total Class Error"
     overallErrorsS <- weighted.mean(totalErrorsS[[4]], totalErrorsS[[3]], na.rm = TRUE)
     cutoff <- as.numeric(input$pct)
+    if (is.na(cutoff))
+      return(NULL)
     if( overallErrorsS > cutoff ){
       return(paste("<span style=\"color:red\">FLAG: High Overall Error</span>"))
     }else{
@@ -3049,31 +2782,13 @@ server <- function(input, output, session) {
     if (input$zeroes == TRUE){
       dat <- read.csv(inFile2$datapath, header = input$header)
     }
-    dat$stdev <- dat[[2]] / 1.645 # derive standard deviations from moes
+    dat$stdev <- dat[[2]] / 1.645
     myclasses <- as.numeric(input$county)
-    # Half-Standard Deviation (+- 0.5, +- 1.5, etc.)
-    halfStDevCount <- c(-1 * rev(seq(1, myclasses, by = 2)),
-                        seq(1, myclasses, by = 2))
-    if((myclasses %% 2) == 1) {
-      halfStDevBreaks <- unlist(lapply(halfStDevCount,
-                                       function(i) (0.5 * i * sd(dat[[1]])) + mean(dat[[1]])))
-      halfStDevBreaks[[1]] <- ifelse(min(dat[[1]]) < halfStDevBreaks[[1]],
-                                     min(dat[[1]]), halfStDevBreaks[[1]])
-      halfStDevBreaks[[myclasses + 1]] <- ifelse(max(dat[[1]]) > halfStDevBreaks[[myclasses + 1]],
-                                                 max(dat[[1]]), halfStDevBreaks[[myclasses + 1]])
-    } else {
-      halfStDevBreaks <- NA
-    }
-    newbreaks <- halfStDevBreaks
-    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, # [[4]]
-                         include.lowest = TRUE, right = TRUE)
-    dat$lowerBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[1:length(newbreaks) - 1]), # [[5]]
+    newbreaks <- stDevBreaks(dat[[1]], myclasses)
+    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, include.lowest = TRUE, right = TRUE)
+    dat$lowerBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[1:length(newbreaks) - 1]),
                           include.lowest = TRUE, right = TRUE)
-    dat$upperBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[2:length(newbreaks)]), # [[6]]
+    dat$upperBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[2:length(newbreaks)]),
                           include.lowest = TRUE, right = TRUE)
     dat$classCode <- paste0("Class ", dat[[4]])
     dat2 <- split(dat, dat[[4]])
@@ -3107,31 +2822,13 @@ server <- function(input, output, session) {
     if (input$zeroes == TRUE){
       dat <- read.csv(inFile2$datapath, header = input$header)
     }
-    dat$stdev <- dat[[2]] / 1.645 # derive standard deviations from moes
+    dat$stdev <- dat[[2]] / 1.645
     myclasses <- as.numeric(input$county)
-    # Half-Standard Deviation (+- 0.5, +- 1.5, etc.)
-    halfStDevCount <- c(-1 * rev(seq(1, myclasses, by = 2)),
-                        seq(1, myclasses, by = 2))
-    if((myclasses %% 2) == 1) {
-      halfStDevBreaks <- unlist(lapply(halfStDevCount,
-                                       function(i) (0.5 * i * sd(dat[[1]])) + mean(dat[[1]])))
-      halfStDevBreaks[[1]] <- ifelse(min(dat[[1]]) < halfStDevBreaks[[1]],
-                                     min(dat[[1]]), halfStDevBreaks[[1]])
-      halfStDevBreaks[[myclasses + 1]] <- ifelse(max(dat[[1]]) > halfStDevBreaks[[myclasses + 1]],
-                                                 max(dat[[1]]), halfStDevBreaks[[myclasses + 1]])
-    } else {
-      halfStDevBreaks <- NA
-    }
-    newbreaks <- halfStDevBreaks
-    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, # [[4]]
-                         include.lowest = TRUE, right = TRUE)
-    dat$lowerBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[1:length(newbreaks) - 1]), # [[5]]
+    newbreaks <- stDevBreaks(dat[[1]], myclasses)
+    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, include.lowest = TRUE, right = TRUE)
+    dat$lowerBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[1:length(newbreaks) - 1]),
                           include.lowest = TRUE, right = TRUE)
-    dat$upperBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[2:length(newbreaks)]), # [[6]]
+    dat$upperBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[2:length(newbreaks)]),
                           include.lowest = TRUE, right = TRUE)
     dat$classCode <- paste0("Class ", dat[[4]])
     dat2 <- split(dat, dat[[4]])
@@ -3147,6 +2844,8 @@ server <- function(input, output, session) {
     totalErrorsS[4] <- totalErrorsS[1] + totalErrorsS[2]
     colnames(totalErrorsS)[4] <- "Total Class Error"
     cutoff <- as.numeric(input$pct)
+    if (is.na(cutoff))
+      return(NULL)
     criteria <- ifelse(totalErrorsS[4] > cutoff * 2, 1, 0)
     if(1 %in% criteria){
       return(paste("<span style=\"color:red\">FLAG: High Error in One or More Classes</span>"))
@@ -3168,31 +2867,13 @@ server <- function(input, output, session) {
     if (input$zeroes == TRUE){
       dat <- read.csv(inFile2$datapath, header = input$header)
     }
-    dat$stdev <- dat[[2]] / 1.645 # derive standard deviations from moes
+    dat$stdev <- dat[[2]] / 1.645
     myclasses <- as.numeric(input$county)
-    # Half-Standard Deviation (+- 0.5, +- 1.5, etc.)
-    halfStDevCount <- c(-1 * rev(seq(1, myclasses, by = 2)),
-                        seq(1, myclasses, by = 2))
-    if((myclasses %% 2) == 1) {
-      halfStDevBreaks <- unlist(lapply(halfStDevCount,
-                                       function(i) (0.5 * i * sd(dat[[1]])) + mean(dat[[1]])))
-      halfStDevBreaks[[1]] <- ifelse(min(dat[[1]]) < halfStDevBreaks[[1]],
-                                     min(dat[[1]]), halfStDevBreaks[[1]])
-      halfStDevBreaks[[myclasses + 1]] <- ifelse(max(dat[[1]]) > halfStDevBreaks[[myclasses + 1]],
-                                                 max(dat[[1]]), halfStDevBreaks[[myclasses + 1]])
-    } else {
-      halfStDevBreaks <- NA
-    }
-    newbreaks <- halfStDevBreaks
-    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, # [[4]]
-                         include.lowest = TRUE, right = TRUE)
-    dat$lowerBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[1:length(newbreaks) - 1]), # [[5]]
+    newbreaks <- stDevBreaks(dat[[1]], myclasses)
+    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, include.lowest = TRUE, right = TRUE)
+    dat$lowerBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[1:length(newbreaks) - 1]),
                           include.lowest = TRUE, right = TRUE)
-    dat$upperBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[2:length(newbreaks)]), # [[6]]
+    dat$upperBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[2:length(newbreaks)]),
                           include.lowest = TRUE, right = TRUE)
     dat$classCode <- paste0("Class ", dat[[4]])
     dat2 <- split(dat, dat[[4]])
@@ -3242,15 +2923,10 @@ server <- function(input, output, session) {
       return(NULL)
     myclasses <- length(uBreaks) + 1
     newbreaks <- c(min(dat[[1]]), uBreaks, max(dat[[1]]))
-    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, # [[4]]
-                         include.lowest = TRUE, right = TRUE)
-    dat$lowerBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[1:length(newbreaks) - 1]), # [[5]]
+    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, include.lowest = TRUE, right = TRUE)
+    dat$lowerBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[1:length(newbreaks) - 1]),
                           include.lowest = TRUE, right = TRUE)
-    dat$upperBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[2:length(newbreaks)]), # [[6]]
+    dat$upperBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[2:length(newbreaks)]),
                           include.lowest = TRUE, right = TRUE)
     dat$classCode <- paste0("Class ", dat[[4]])
     dat2 <- split(dat, dat[[4]])
@@ -3266,8 +2942,11 @@ server <- function(input, output, session) {
     totalErrorsU[4] <- totalErrorsU[1] + totalErrorsU[2]
     colnames(totalErrorsU)[4] <- "Total Class Error"
     overallErrorsU <- weighted.mean(totalErrorsU[[4]], totalErrorsU[[3]], na.rm = TRUE)
-    if( overallErrorsU > 10 ){
-      return(paste("<span style=\"color:red\">FLAG: High</span>"))
+    cutoff <- as.numeric(input$pct)
+    if (is.na(cutoff))
+      return(NULL)
+    if( overallErrorsU > cutoff ){
+      return(paste("<span style=\"color:red\">FLAG: High Overall Error</span>"))
     }else{
       return(paste("<span style=\"color:green\">OK</span>"))
     }
@@ -3289,15 +2968,10 @@ server <- function(input, output, session) {
       return("Invalid breaks input. Only numeric values and commas valid")
     myclasses <- length(uBreaks) + 1
     newbreaks <- c(min(dat[[1]]), uBreaks, max(dat[[1]]))
-    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, # [[4]]
-                         include.lowest = TRUE, right = TRUE)
-    dat$lowerBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[1:length(newbreaks) - 1]), # [[5]]
+    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, include.lowest = TRUE, right = TRUE)
+    dat$lowerBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[1:length(newbreaks) - 1]),
                           include.lowest = TRUE, right = TRUE)
-    dat$upperBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[2:length(newbreaks)]), # [[6]]
+    dat$upperBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[2:length(newbreaks)]),
                           include.lowest = TRUE, right = TRUE)
     dat$classCode <- paste0("Class ", dat[[4]])
     dat2 <- split(dat, dat[[4]])
@@ -3334,15 +3008,10 @@ server <- function(input, output, session) {
       return(NULL)
     myclasses <- length(uBreaks) + 1
     newbreaks <- c(min(dat[[1]]), uBreaks, max(dat[[1]]))
-    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, # [[4]]
-                         include.lowest = TRUE, right = TRUE)
-    dat$lowerBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[1:length(newbreaks) - 1]), # [[5]]
+    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, include.lowest = TRUE, right = TRUE)
+    dat$lowerBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[1:length(newbreaks) - 1]),
                           include.lowest = TRUE, right = TRUE)
-    dat$upperBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[2:length(newbreaks)]), # [[6]]
+    dat$upperBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[2:length(newbreaks)]),
                           include.lowest = TRUE, right = TRUE)
     dat$classCode <- paste0("Class ", dat[[4]])
     dat2 <- split(dat, dat[[4]])
@@ -3358,6 +3027,8 @@ server <- function(input, output, session) {
     totalErrorsU[4] <- totalErrorsU[1] + totalErrorsU[2]
     colnames(totalErrorsU)[4] <- "Total Class Error"
     cutoff <- as.numeric(input$pct)
+    if (is.na(cutoff))
+      return(NULL)
     criteria <- ifelse(totalErrorsU[4] > cutoff * 2, 1, 0)
     if(1 %in% criteria){
       return(paste("<span style=\"color:red\">FLAG: High Error in One or More Classes</span>"))
@@ -3376,21 +3047,16 @@ server <- function(input, output, session) {
     if (input$zeroes == TRUE){
       dat <- read.csv(inFile2$datapath, header = input$header)
     }
-    dat$stdev <- dat[[2]] / 1.645 # derive standard deviations from moes
+    dat$stdev <- dat[[2]] / 1.645
     uBreaks <- as.numeric(unlist(strsplit(input$vec1,",")))
     if (any(is.na(uBreaks)))
       return("Invalid breaks input. Only numeric values and commas valid")
     myclasses <- length(uBreaks) + 1
     newbreaks <- c(min(dat[[1]]), uBreaks, max(dat[[1]]))
-    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, # [[4]]
-                         include.lowest = TRUE, right = TRUE)
-    dat$lowerBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[1:length(newbreaks) - 1]), # [[5]]
+    dat$classCode <- cut(dat[[1]], labels = FALSE, breaks = newbreaks, include.lowest = TRUE, right = TRUE)
+    dat$lowerBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[1:length(newbreaks) - 1]),
                           include.lowest = TRUE, right = TRUE)
-    dat$upperBound <- cut(dat[[1]],
-                          breaks = newbreaks,
-                          labels = c(newbreaks[2:length(newbreaks)]), # [[6]]
+    dat$upperBound <- cut(dat[[1]], breaks = newbreaks, labels = c(newbreaks[2:length(newbreaks)]),
                           include.lowest = TRUE, right = TRUE)
     dat$classCode <- paste0("Class ", dat[[4]])
     dat2 <- split(dat, dat[[4]])
