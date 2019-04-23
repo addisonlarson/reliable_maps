@@ -12,13 +12,14 @@ output:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-**tl;dr** Download Census data. Get rid of extra columns, blank cells, and special characters. Export as a \texttt{.csv}. [\texttt{\underline{Use the calculator}}](https://aplarson.shinyapps.io/MapClassificationAutoreporter/).
+**tl;dr** Download Census data. Get rid of extra columns, blank cells, and special characters. The first column should be estimates, and the second should be MOEs. Export as a \texttt{.csv}. [\texttt{\underline{Use the calculator}}](https://aplarson.shinyapps.io/MapClassificationAutoreporter/).
 
 ## 1. Download Census data.
-You can do this using the [\texttt{\underline{Census API}}](https://www.census.gov/data/developers/data-sets.html) (as seen below) or by visiting [\texttt{\underline{American FactFinder}}](https://factfinder.census.gov/faces/nav/jsf/pages/index.xhtml) and downloading your data from there. The chunk below uses the Census API to download the number of Hispanic or Latino residents at the census tract level for Philadelphia County, PA.
+You can do this using the [\texttt{\underline{Census API}}](https://www.census.gov/data/developers/data-sets.html) (as seen below) or by visiting [\texttt{\underline{American FactFinder}}](https://factfinder.census.gov/faces/nav/jsf/pages/index.xhtml) and downloading your data from there. The chunk below uses the Census API to download the number of Hispanic or Latino residents at the census tract level for Philadelphia County, PA. If you haven't used the Census API before, then you'll need to [\texttt{\underline{Request a Key}}](https://api.census.gov/data/key_signup.html) and place it in `YOUR KEY HERE`.
 
 ```{r pack, results = "hide", message = FALSE, warning = FALSE}
-require(tidycensus); require(tidyverse)
+library(tidycensus); library(tidyverse)
+# census_api_key("YOUR KEY HERE")
 data <- get_acs(state = "PA", county = 101, geography = "tract", variables = "B03003_003")
 ```
 
@@ -57,7 +58,7 @@ Visit the [\texttt{\underline{Map Reliability Calculator}}](https://aplarson.shi
 ### The calculator has a lot of functions. Let's walk through them:
 1. **Data upload**, located top left. Click the **browse** button to add your dataset.
     + **File has a header**, located top left. Uncheck this if your .csv has no column names.
-    + **Include estimates of 0 in error calculations**, located top left. Check this if you have lots of zeroes in your dataset.
+    + **Include estimates of 0 in error calculations**, located top left. Uncheck this if you want to exclude observations with estimates of 0.
 2. **Summary of expected errors**, located top center. A quick summary of the classification schemes and number of breaks well-suited for your dataset.
 3. **Select number of classes**, located top left. Once you're set on a number of classes for your map, select the number in the drop-down menu. Your selection changes the results of **Error by number of classes**.
 4. **Acceptable error percentage**, located top left. Default is 10%.

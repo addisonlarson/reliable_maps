@@ -55,7 +55,7 @@ ui <- fluidPage(
            ),
            tags$hr(),
            checkboxInput("header", "File has a header", TRUE),
-           checkboxInput("zeroes", "Include estimates of 0 in error calculations", FALSE),
+           checkboxInput("zeroes", "Include estimates of 0 in error calculations", TRUE),
            htmlOutput("county_selector"),
            textInput("pct", "Error threshold (Default is 10%):", "10"),
            textInput("vec1", "Custom comma-delimited breaks (Optional):","0.75,3.32"),
